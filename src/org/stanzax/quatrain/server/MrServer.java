@@ -32,16 +32,22 @@ public class MrServer {
 		UUID requestID = REQUEST_ID.get();
 	}
 	
-	protected void freturn() {
-		// TODO Method stub
-		UUID requestID = REQUEST_ID.get();
-	}
-	
-	protected void freturn(Object value) {
-		preturn(value);
-		freturn();
-	}
-	
 	protected static final InheritableThreadLocal<UUID> REQUEST_ID = new InheritableThreadLocal<UUID>();
+
+	protected class Thread extends java.lang.Thread {
+		
+		public Thread() {
+			super();
+		}
+		
+		public Thread(Runnable target) {
+			super(target);
+		}
+		
+		public Thread(String name) {
+			super(name);
+		}
+		
+	}
 }
 

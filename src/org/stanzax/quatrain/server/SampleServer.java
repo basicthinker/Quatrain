@@ -17,28 +17,24 @@ public class SampleServer extends MrServer {
 	private void functionName() {
 		int[] data = {0, 1, 2, 3, 4, 5, 6};
 		for (int index : data) {
-			new Thread(new MrThread(data[index])).start();
+			new Thread(new MrWorker(data[index])).start();
 		}
 
 		try {
 			// partially return
 			preturn("0 arrives without awaiting -1.");
 			Thread.sleep(1000000); // simulates calculation or straggler
-			preturn("-1 arrives with defering 0.");
-			// finally return
-			freturn();
-			
+			preturn("-1 arrives without defering 0.");
 		} catch (InterruptedException e) {
 			// when not all preturns finish
-			// and consequently no freturn is invoked.
 			e.printStackTrace();
 		}
 	}
 	
 	/** Thread that constructs partial return(s) */
-	private class MrThread implements Runnable {
+	private class MrWorker implements Runnable {
 
-		public MrThread(int item) {
+		public MrWorker(int item) {
 			this.item = item;
 		}
 		
