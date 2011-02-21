@@ -34,10 +34,17 @@ public class MrServer {
     }
 
     public void start() {
-        isRunning = true;
-        responder.start();
-        listener.start();
-        Log.info("Quatrain Service Starts.");
+        try {
+        	isRunning = true;
+	        responder.start();
+	        listener.start();
+	        Log.info("Quatrain Service Starts.");
+			listener.join();
+			responder.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+        
     }
 
     public void stop() {
@@ -96,6 +103,8 @@ public class MrServer {
             // Register initial acceptance channel to selector
             // so that the selector monitors the channel's acceptance events
             acceptChannel.register(selector, SelectionKey.OP_ACCEPT);
+            // Allocate input buffer
+            inBuffer = ByteBuffer.allocate(1024);
         }
 
         @Override
@@ -129,12 +138,13 @@ public class MrServer {
 
         private void doRead(SocketChannel channel) throws IOException {
             // TODO Auto-generated method stub
-            
-            channel.read(inBuffer);
-            inBuffer.flip();
-            DataInputStream dataStream = new DataInputStream(new ByteArrayInputStream(inBuffer.array()));
-            String data = dataStream.readUTF();
-            System.out.println(data);
+            while (channel.read(inBuffer) > 0) {
+	            inBuffer.flip();
+	            DataInputStream dataStream = new DataInputStream(new ByteArrayInputStream(inBuffer.array()));
+	            inBuffer.clear();
+	            String data = dataStream.readUTF();
+	            System.out.println(data);
+            }
         }
 
         /** Hold one selector to tell socket events */

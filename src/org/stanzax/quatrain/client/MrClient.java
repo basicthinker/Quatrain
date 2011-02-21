@@ -3,9 +3,17 @@
  */
 package org.stanzax.quatrain.client;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
-import javax.net.SocketFactory;
+import org.stanzax.quatrain.io.Log;
+import org.stanzax.quatrain.io.SocketChannelPool;
 
 /**
  * @author basicthinker
@@ -13,42 +21,52 @@ import javax.net.SocketFactory;
  */
 public class MrClient {
 
-    public MrClient(SocketFactory socketFactory) {
-        this.socketFactory = socketFactory;
+    public MrClient(SocketAddress address) {
+        this.address = address;
     }
 
+    public MrClient(InetAddress host, int port) {
+    	this.address = new InetSocketAddress(host, port);
+    }
+    
     /**
-     * Sets server to bind for the client
+     * Set binded server for this client
      * 
-     * @param host
-     *            Internet address of target server
-     * @param port
-     *            target port number on the server
+     * @param address
+     *            Socket address of target server
      */
-    public void useRemote(InetAddress host, int port) {
-        // TODO Method stub
-    }
-
-    public <ElementType> ResultSet<ElementType> invoke(String functionName,
-            int numLinks) {
-        // TODO Method stub
-        return new ResultSet<ElementType>();
+    public void useRemote(SocketAddress address) {
+    	this.address = address;
     }
 
     public <ElementType> ResultSet<ElementType> invoke(String functionName) {
-        return invoke(functionName, 1);
-    }
-
-    public <ElementType> ResultSet<ElementType> invoke(String functionName,
-            Object[] arguments, int numLinks) {
-        // TODO Method stub
-        return new ResultSet<ElementType>();
+        return invoke(functionName, new Object[0]);
     }
 
     public <ElementType> ResultSet<ElementType> invoke(String functionName,
             Object[] arguments) {
-        return invoke(functionName, arguments, 1);
+    	// TODO Serialization
+    	try {
+			SocketChannel channel = channelPool.getSocketChannel(address);
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			DataOutputStream serializer = new DataOutputStream(out);
+			serializer.writeUTF(functionName);
+			channel.write(ByteBuffer.wrap(out.getByteArray(), 0, out.size()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    	return new ResultSet<ElementType>();
     }
 
-    private SocketFactory socketFactory;
+    /** Hold a socket address of the target server */
+    private SocketAddress address;
+    /** Hold a static socket channel pool */
+    private static SocketChannelPool channelPool = new SocketChannelPool();
+    
+    /** ByteArrayOutputStream that give direct access to its backing array */
+    private class ByteArrayOutputStream extends java.io.ByteArrayOutputStream {
+    	public byte[] getByteArray() {
+    		return buf;
+    	}
+    }
 }

@@ -4,6 +4,7 @@
 package org.stanzax.quatrain.client;
 
 import java.net.InetAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 
 import javax.net.ssl.SSLSocketFactory;
@@ -19,9 +20,8 @@ public class SampleClient {
     }
 
     public static void main(String[] args) {
-        MrClient client = new MrClient(SSLSocketFactory.getDefault());
         try {
-            client.useRemote(InetAddress.getByName("www.stanzax.com"), 3122);
+        	MrClient client = new MrClient(InetAddress.getByName("localhost"), 3122);
             // invoke non-blocking multi-return RPC
             ResultSet<String> records = client.invoke("functionName");
             // incrementally retrieve partial returns
