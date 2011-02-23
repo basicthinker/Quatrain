@@ -13,9 +13,11 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.stanzax.quatrain.io.Log;
+import org.stanzax.quatrain.io.Writable;
+import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
  * @author basicthinker
@@ -23,24 +25,28 @@ import org.stanzax.quatrain.io.Log;
  */
 public class MrServer {
 
-    public MrServer(String address, int port, int handlerCount) throws IOException {
-        bindAddress = new InetSocketAddress(address, port); // set up bind address
-        listener = new Thread(new Listener()); // create listener thread
-        listener.setDaemon(true);
-        responder = new Thread(new Responder()); // create responder thread
-        responder.setDaemon(true);
-        // TODO Multiple handlers
-
+	/** User can configure server by providing refined thread pool executors. */
+    public MrServer(String address, int port, WritableWrapper wrapper,
+    		ThreadPoolExecutor handlerExecutor,
+    		ThreadPoolExecutor responderExecutor) 
+    throws IOException {
+        this.bindAddress = new InetSocketAddress(address, port); // set up bind address
+        this.channel = new InheritableThreadLocal<SocketChannel>();
+        this.callID = new InheritableThreadLocal<Long>();
+        
+        this.listener = new Thread(new Listener()); // create listener thread
+        this.listener.setDaemon(true);
+        
+        this.handlerExecutor = handlerExecutor;
+        this.responderExecutor = responderExecutor;
     }
 
     public void start() {
         try {
         	isRunning = true;
-	        responder.start();
 	        listener.start();
 	        Log.info("Quatrain Service Starts.");
 			listener.join();
-			responder.join();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -51,29 +57,33 @@ public class MrServer {
 
     }
 
-    /**
-     * Returns partical results
-     * 
-     * @param value
-     *            the partical return value
-     */
+    protected void preturn(Writable value) {
+    	
+    }
+    protected void preturn(int intValue) {
+    	
+    }
     protected void preturn(Object value) {
         // TODO Method stub
-        UUID requestID = REQUEST_ID.get();
+        long id = callID.get();
     }
 
     InetSocketAddress bindAddress;
 
-    /** Each server contains one thread listening to target socket address */
-    Thread listener; 
-    /** Each server contains one thread sending back replies */
-    Thread responder;
-    
-    /** Denotes whether this server is still running */
-    private volatile boolean isRunning;
-
-    /** Set by Handler and retrieved by preturn() to locate the respond target */
-    protected static final InheritableThreadLocal<UUID> REQUEST_ID = new InheritableThreadLocal<UUID>();
+    /** Each server holds one thread listening to target socket address */
+    protected Thread listener; 
+    /** Denote whether this server is still running */
+    protected volatile boolean isRunning;
+    /** Writable factory to produce proper type of instance */
+    protected WritableWrapper wrapper;
+    /** Thread pool executor to execute Handlers */
+    protected ThreadPoolExecutor handlerExecutor;
+    /** Thread pool executor to execute Responders */
+    protected ThreadPoolExecutor responderExecutor;
+    /** Set by Handler and retrieved by preturn() to get the connection */
+    protected final InheritableThreadLocal<SocketChannel> channel;
+    /** Set by Handler and retrieved by preturn() to construct reply header */
+    protected final InheritableThreadLocal<Long> callID;
 
     protected class Thread extends java.lang.Thread {
 
@@ -152,17 +162,41 @@ public class MrServer {
         /** Hold a byte buffer for input, as class field to avoid multiple allocation */
         ByteBuffer inBuffer;
     }
+
+    private class Handler implements Runnable {
+
+    	public Handler(RemoteCall call) {
+    		this.call = call;
+    	}
+    	
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			Log.info(getClass().getName());
+			String value = this.getClass().getEnclosingClass().getName();
+			Responder responder = new Responder(call.getID(), call.getSocketChannel(), wrapper.valueOf(value));
+			responderExecutor.execute(responder);
+		}
+    	
+		private RemoteCall call;
+    }
     
     private class Responder implements Runnable {
-        
-        public Responder() {
-            
-        }
 
+    	public Responder(long callID, SocketChannel channel, Writable value) {
+    		this.callID = callID;
+    		this.channel = channel;
+    		this.value = value;
+    	}
+    	
         @Override
         public void run() {
             // TODO Auto-generated method stub
             
         }
+        
+    	private long callID;
+    	private SocketChannel channel;
+    	private Writable value;
     }
 }

@@ -1,13 +1,16 @@
 /**
  * 
  */
-package org.stanzax.quatrain.client;
+package org.stanzax.quatrain.hadoop;
 
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 
 import javax.net.ssl.SSLSocketFactory;
+
+import org.stanzax.quatrain.client.MrClient;
+import org.stanzax.quatrain.client.ResultSet;
 
 /**
  * @author basicthinker
