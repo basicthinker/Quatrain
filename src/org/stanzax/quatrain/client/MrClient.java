@@ -3,17 +3,17 @@
  */
 package org.stanzax.quatrain.client;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
+import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
  * @author basicthinker
@@ -21,14 +21,16 @@ import org.stanzax.quatrain.io.SocketChannelPool;
  */
 public class MrClient {
 
-    public MrClient(SocketAddress address) {
+    public MrClient(SocketAddress address, WritableWrapper wrapper) {
         this.address = address;
+        this.writable = wrapper;
     }
 
-    public MrClient(InetAddress host, int port) {
-    	this.address = new InetSocketAddress(host, port);
+    public MrClient(InetAddress host, int port, WritableWrapper wrapper) {
+        this.address = new InetSocketAddress(host, port);
+        this.writable = wrapper;
     }
-    
+
     /**
      * Set binded server for this client
      * 
@@ -36,7 +38,7 @@ public class MrClient {
      *            Socket address of target server
      */
     public void useRemote(SocketAddress address) {
-    	this.address = address;
+        this.address = address;
     }
 
     public <ElementType> ResultSet<ElementType> invoke(String functionName) {
@@ -45,28 +47,32 @@ public class MrClient {
 
     public <ElementType> ResultSet<ElementType> invoke(String functionName,
             Object[] arguments) {
-    	// TODO Serialization
-    	try {
-			SocketChannel channel = channelPool.getSocketChannel(address);
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			DataOutputStream serializer = new DataOutputStream(out);
-			serializer.writeUTF(functionName);
-			channel.write(ByteBuffer.wrap(out.getByteArray(), 0, out.size()));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-    	return new ResultSet<ElementType>();
+        try {
+            SocketChannel channel = channelPool.getSocketChannel(address);
+            DataOutputBuffer dataOut = new DataOutputBuffer();
+            writable.valueOf(48579).write(dataOut);
+            dataOut.flush();
+            
+            int dataLength = dataOut.getDataLength();
+            ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
+            lengthBuffer.flip();
+            
+            synchronized(channel) {
+                channel.write(lengthBuffer);
+                channel.write(ByteBuffer.wrap(dataOut.getData(),
+                        0, dataLength));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new ResultSet<ElementType>();
     }
 
     /** Hold a socket address of the target server */
     private SocketAddress address;
+    private WritableWrapper writable;
     /** Hold a static socket channel pool */
     private static SocketChannelPool channelPool = new SocketChannelPool();
     
-    /** ByteArrayOutputStream that give direct access to its backing array */
-    private class ByteArrayOutputStream extends java.io.ByteArrayOutputStream {
-    	public byte[] getByteArray() {
-    		return buf;
-    	}
-    }
+    
 }

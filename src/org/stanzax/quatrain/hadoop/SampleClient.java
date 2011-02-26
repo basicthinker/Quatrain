@@ -4,10 +4,7 @@
 package org.stanzax.quatrain.hadoop;
 
 import java.net.InetAddress;
-import java.net.SocketAddress;
 import java.net.UnknownHostException;
-
-import javax.net.ssl.SSLSocketFactory;
 
 import org.stanzax.quatrain.client.MrClient;
 import org.stanzax.quatrain.client.ResultSet;
@@ -24,7 +21,8 @@ public class SampleClient {
 
     public static void main(String[] args) {
         try {
-        	MrClient client = new MrClient(InetAddress.getByName("localhost"), 3122);
+            MrClient client = new MrClient(InetAddress.getByName("localhost"),
+                    3122, new HadoopWrapper());
             // invoke non-blocking multi-return RPC
             ResultSet<String> records = client.invoke("functionName");
             // incrementally retrieve partial returns

@@ -15,24 +15,26 @@ import org.stanzax.quatrain.server.MrServer;
  * 
  */
 public class SampleServer extends MrServer {
-	
-	/** 
-	 * Default configuration uses 2 times core pool size as maximum pool size
-	 * @param address the binded host address
-	 * @param port the binded port of host
-	 * @param handlerCount the number of handlers' core pool size
-	 * @param responderCount the number of responders' core pool size 
-	 */
-    public SampleServer(String address, int port, int handlerCount, int responderCount) throws IOException {
-    	super(address, port, new HadoopWrapper(),
-    			new ThreadPoolExecutor(
-    					handlerCount, 2 * handlerCount,
-    					6, TimeUnit.SECONDS,
-    					new LinkedBlockingQueue<Runnable>()),
-    			new ThreadPoolExecutor(
-    					responderCount, 2 * responderCount, 
-    					6, TimeUnit.SECONDS, 
-    					new LinkedBlockingQueue<Runnable>()));
+
+    /**
+     * Default configuration uses 2 times core pool size as maximum pool size
+     * 
+     * @param address
+     *            the binded host address
+     * @param port
+     *            the binded port of host
+     * @param handlerCount
+     *            the number of handlers' core pool size
+     * @param responderCount
+     *            the number of responders' core pool size
+     */
+    public SampleServer(String address, int port, int handlerCount,
+            int responderCount) throws IOException {
+        super(address, port, new HadoopWrapper(), new ThreadPoolExecutor(
+                handlerCount, 2 * handlerCount, 6, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>()), new ThreadPoolExecutor(
+                responderCount, 2 * responderCount, 6, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>()));
     }
 
     /** Remotely called procedure */

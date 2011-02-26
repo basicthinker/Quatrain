@@ -21,16 +21,15 @@ package org.stanzax.quatrain.hadoop;
 import org.stanzax.quatrain.io.Writable;
 
 /** A WritableComparable for floats. */
-public class FloatWritable extends org.apache.hadoop.io.FloatWritable
-implements Writable {
+public class FloatWritable extends org.apache.hadoop.io.FloatWritable implements
+        Writable {
 
-	public FloatWritable(float value) {
-		super(value);
-	}
+    public FloatWritable(float value) {
+        super(value);
+    }
 
-	public FloatWritable() {
-		super();
-	}
+    public FloatWritable() {
+        super();
+    }
 
 }
-

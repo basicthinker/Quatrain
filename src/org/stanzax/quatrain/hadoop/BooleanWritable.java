@@ -20,18 +20,18 @@ package org.stanzax.quatrain.hadoop;
 
 import org.stanzax.quatrain.io.Writable;
 
-/** 
- * A WritableComparable for booleans. 
+/**
+ * A WritableComparable for booleans.
  */
-public class BooleanWritable extends org.apache.hadoop.io.BooleanWritable 
-implements Writable {
+public class BooleanWritable extends org.apache.hadoop.io.BooleanWritable
+        implements Writable {
 
-	public BooleanWritable(boolean value) {
-		super(value);
-	}
+    public BooleanWritable(boolean value) {
+        super(value);
+    }
 
-	public BooleanWritable() {
-		super();
-	}
+    public BooleanWritable() {
+        super();
+    }
 
 }

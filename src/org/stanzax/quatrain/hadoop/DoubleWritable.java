@@ -24,15 +24,14 @@ import org.stanzax.quatrain.io.Writable;
  * Writable for Double values.
  */
 public class DoubleWritable extends org.apache.hadoop.io.DoubleWritable
-implements Writable {
+        implements Writable {
 
-	public DoubleWritable(double value) {
-		super(value);
-	}
+    public DoubleWritable(double value) {
+        super(value);
+    }
 
-	public DoubleWritable() {
-		super();
-	}
+    public DoubleWritable() {
+        super();
+    }
 
 }
-

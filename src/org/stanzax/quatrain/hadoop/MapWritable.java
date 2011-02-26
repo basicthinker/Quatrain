@@ -7,23 +7,23 @@ import org.stanzax.quatrain.io.Writable;
 
 /**
  * @author basicthinker
- *
+ * 
  */
 public class MapWritable extends org.apache.hadoop.io.MapWritable implements
-		Writable {
+        Writable {
 
-	/**
+    /**
 	 * 
 	 */
-	public MapWritable() {
-		super();
-	}
+    public MapWritable() {
+        super();
+    }
 
-	/**
-	 * @param other
-	 */
-	public MapWritable(org.apache.hadoop.io.MapWritable other) {
-		super(other);
-	}
+    /**
+     * @param other
+     */
+    public MapWritable(org.apache.hadoop.io.MapWritable other) {
+        super(other);
+    }
 
 }

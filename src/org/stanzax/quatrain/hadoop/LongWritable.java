@@ -21,16 +21,15 @@ package org.stanzax.quatrain.hadoop;
 import org.stanzax.quatrain.io.Writable;
 
 /** A WritableComparable for longs. */
-public class LongWritable extends org.apache.hadoop.io.LongWritable 
-implements Writable {
+public class LongWritable extends org.apache.hadoop.io.LongWritable implements
+        Writable {
 
-	public LongWritable(long value) {
-		super(value);
-	}
+    public LongWritable(long value) {
+        super(value);
+    }
 
-	public LongWritable() {
-		super();
-	}
+    public LongWritable() {
+        super();
+    }
 
 }
-

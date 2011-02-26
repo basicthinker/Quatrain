@@ -21,16 +21,15 @@ package org.stanzax.quatrain.hadoop;
 import org.stanzax.quatrain.io.Writable;
 
 /** A WritableComparable for a single byte. */
-public class ByteWritable extends org.apache.hadoop.io.ByteWritable
-implements Writable {
+public class ByteWritable extends org.apache.hadoop.io.ByteWritable implements
+        Writable {
 
-	public ByteWritable(char charValue) {
-		super((byte)charValue);
-	}
+    public ByteWritable(char charValue) {
+        super((byte) charValue);
+    }
 
-	public ByteWritable() {
-		super();
-	}
+    public ByteWritable() {
+        super();
+    }
 
 }
-

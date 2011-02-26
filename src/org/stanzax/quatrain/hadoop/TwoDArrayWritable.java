@@ -22,15 +22,14 @@ import org.stanzax.quatrain.io.Writable;
 
 /** A Writable for 2D arrays containing a matrix of instances of a class. */
 public class TwoDArrayWritable extends org.apache.hadoop.io.TwoDArrayWritable
-implements Writable {
+        implements Writable {
 
-	public TwoDArrayWritable(Class valueClass) {
-		super(valueClass);
-	}
+    public TwoDArrayWritable(Class<?> valueClass) {
+        super(valueClass);
+    }
 
-	public TwoDArrayWritable(Class valueClass, 
-			org.apache.hadoop.io.Writable[][] values) {
-		super(valueClass, values);
-	}
+    public TwoDArrayWritable(Class<?> valueClass,
+            org.apache.hadoop.io.Writable[][] values) {
+        super(valueClass, values);
+    }
 }
-

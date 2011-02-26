@@ -21,16 +21,15 @@ package org.stanzax.quatrain.hadoop;
 import org.stanzax.quatrain.io.Writable;
 
 /** A WritableComparable for ints. */
-public class IntWritable extends org.apache.hadoop.io.IntWritable
-implements Writable {
+public class IntWritable extends org.apache.hadoop.io.IntWritable implements
+        Writable {
 
-	public IntWritable(int value) {
-		super(value);
-	}
+    public IntWritable(int value) {
+        super(value);
+    }
 
-	public IntWritable() {
-		super();
-	}
+    public IntWritable() {
+        super();
+    }
 
 }
-
