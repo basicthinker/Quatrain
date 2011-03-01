@@ -5,11 +5,14 @@ package org.stanzax.quatrain.client;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.stanzax.quatrain.hadoop.BooleanWritable;
+import org.stanzax.quatrain.hadoop.StringWritable;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
 
@@ -21,15 +24,21 @@ import org.stanzax.quatrain.io.Writable;
  */
 public class ResultSet {
     
-    public ResultSet(long callID, Writable returnType, long timeout) {
-        this.callID = callID;
-        this.returnType = returnType;
+    public ResultSet(Writable type, long timeout) {
+        this.returnType = type;
         this.timeout = timeout;
-        this.iterator = results.iterator();
-        beginTime = System.currentTimeMillis();
-        waiting.put(callID, this);
     }
 
+    /**
+     * Register for awaiting reply. 
+     * Invoked before sending request to guarantee no reply omitted.
+     */
+    public void register(long callID) {
+        this.callID = callID;
+        waiting.put(callID, this);
+        if (Log.debug) Log.debug("New result set registered, .current # waiting", waiting.size());
+    }
+    
     public boolean hasError() {
         return errors.size() > 0;
     }
@@ -39,36 +48,34 @@ public class ResultSet {
         return isPartial;
     }
     
-    public synchronized boolean hasMore() {
-        if (iterator.hasNext()) {
+    public boolean hasMore() {
+        if (!replyQueue.isEmpty()) {
             return true;
         } else if (isTimedOut) {
             return false;
-        } else if (isPartial) {
-            try {
-                if (Log.debug) Log.debug("Begin awaiting replies from .callID...", callID);
-                wait(timeout);
-                if (Log.debug) Log.debug("Finish awaiting replies from .callID for .time",
-                        callID, System.currentTimeMillis() - beginTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } 
-            if (iterator.hasNext()) return true;
-            else if (System.currentTimeMillis() - beginTime > timeout) {
-                isTimedOut = true;
-                return false;
-            } else return hasMore();
-        } else return false;
+        } else if (!isPartial) {
+            return false;
+        } else {
+            Object element = nextElement();
+            if (element != null) {
+                replyQueue.add(element);
+                return true;
+            } return false;
+        }
     }
 
     public Object nextElement() {
-        if (hasMore()) {
-            return iterator.next();
-        } else return null;
-    }
-    
-    public Vector<Object> resultSet() {
-        return results;
+        try {
+            Object element = replyQueue.poll(timeout, TimeUnit.MILLISECONDS);
+            if (element == null) isTimedOut = true;
+            return element;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if (System.currentTimeMillis() - beginTime > timeout) {
+            isTimedOut = true;
+            return null;
+        } else return nextElement();
     }
     
     public String errorMessage() {
@@ -82,26 +89,34 @@ public class ResultSet {
     
     /** Input should begin with error flag */
     public void putData(DataInputStream dataIn) {
-        Log.info("Read in data.");
         if (!isTimedOut) {
             try {
                 BooleanWritable errorFlag = new BooleanWritable();
                 errorFlag.readFields(dataIn);
                 if (errorFlag.get()) {
-                    // TODO Deal with errors
+                    StringWritable errorMessage = new StringWritable();
+                    errorMessage.readFields(dataIn);
+                    errors.add(errorMessage.toString());
+                } else if (dataIn.available() == 0) { 
+                    // end of frame denoting final return
+                    isPartial = false;
                 } else {
                     while (dataIn.available() > 0) {
                         returnType.readFields(dataIn);
-                        results.add(returnType.getValue());
+                        replyQueue.offer(returnType.getValue(),
+                                timeout, TimeUnit.MILLISECONDS);
                     }
                 }
             } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         } else return;
     }
 
     public void close() {
+        if (callID == 0) return;
         waiting.remove(callID);
     }
     
@@ -114,16 +129,19 @@ public class ResultSet {
         return waiting.get(callID);
     }
     
-    private long callID;
-    private Vector<Object> results = new Vector<Object>();
-    private Vector<String> errors = new Vector<String>();
-    private Iterator<Object> iterator;
-    /** Not holding value, only for deserialization */
+    public static Map<Long, ResultSet> getAll() {
+        return waiting;
+    }
+    
+    private long callID = 0;
     private Writable returnType;
-    private volatile boolean isPartial = true;
-    private long beginTime;
     private long timeout;
-    private boolean isTimedOut = false;
+    private LinkedBlockingQueue<Object> replyQueue = new LinkedBlockingQueue<Object>();
+    private Vector<String> errors = new Vector<String>();
+    /** Not holding value, only for deserialization */
+    private volatile boolean isPartial = true;
+    private volatile boolean isTimedOut = false;
+    private long beginTime = System.currentTimeMillis();
     
     private static ConcurrentHashMap<Long, ResultSet> waiting = 
         new ConcurrentHashMap<Long, ResultSet>();

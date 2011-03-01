@@ -60,11 +60,15 @@ public class MrClient {
 
     public ResultSet invoke(String functionName,
             Object[] arguments, Type returnType) {
+        long callID = counter.addAndGet(1);
+        // Early create and register result set for awaiting reply
+        ResultSet results = new ResultSet(writable.newInstance(returnType), timeout);
+        results.register(callID);
         try {
             SocketChannel channel = channelPool.getSocketChannel(address);
             DataOutputBuffer dataOut = new DataOutputBuffer();
             // Write call ID
-            LongWritable writableCallID = new LongWritable(callID.get());
+            LongWritable writableCallID = new LongWritable(callID);
             writableCallID.write(dataOut);
             // TODO Write function name and parameters
             writable.valueOf(100).write(dataOut);
@@ -88,8 +92,7 @@ public class MrClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new ResultSet(callID.addAndGet(1), 
-                writable.newInstance(returnType), timeout);
+        return results;
     }
 
     /** Hold a socket address of the target server */
@@ -97,12 +100,14 @@ public class MrClient {
     private WritableWrapper writable;
     /** Max time in millisecond to wait for a return */
     private long timeout;
-    private AtomicLong callID = new AtomicLong();
     /** Hold a selector waiting for reply */
     private Selector selector = Selector.open();
     /** Hold a Listener thread waiting for reply */
     private Thread listener = new Thread(new Listener());
-    /** Hold a static socket channel pool */
+    
+    /** Static call ID counter */
+    private static AtomicLong counter = new AtomicLong();
+    /** Static socket channel pool */
     private static SocketChannelPool channelPool = new SocketChannelPool();
     
     private class Listener implements Runnable {
@@ -138,19 +143,18 @@ public class MrClient {
         private void doRead(ChannelBuffer channelBuffer) throws IOException {
             if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
                 if (channelBuffer.tryReadData()) {
+                    if (Log.debug) Log.debug("Receive reply with .length",
+                            channelBuffer.getLength());
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
                     LongWritable callID = (LongWritable)writable.newInstance(Long.TYPE);
                     callID.readFields(dataIn);
-                    if (Log.debug) Log.debug("Receive reply with .callID .length",
-                            callID.get(), channelBuffer.getLength());
                     // Pass on data to corresponding result set
                     ResultSet results = ResultSet.get(callID.get());
                     if (results != null) {
                         results.putData(dataIn);
-                        results.notifyAll();
-                        if (Log.debug) Log.debug("Read in data and notified waiters.");
+                        if (Log.debug) Log.debug("Result set read in data.");
                     }
                 } 
             } 

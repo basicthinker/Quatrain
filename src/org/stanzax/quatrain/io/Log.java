@@ -37,7 +37,7 @@ public class Log {
     
     private static String currentTime() {
         SimpleDateFormat formatter = 
-            new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+            new SimpleDateFormat("yyyy-MM-dd hh:mm:ss:SSS");
         return formatter.format(new Date());
     }
     

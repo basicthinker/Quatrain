@@ -35,7 +35,7 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
         else if (classType == Float.TYPE)
             return new FloatWritable();
         else if (classType == String.class)
-            return new Text();
+            return new StringWritable();
         else
             throw new IllegalArgumentException("Invalid class type");
     }
@@ -102,7 +102,7 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
 
     @Override
     public Writable valueOf(String stringValue) {
-        return new Text(stringValue);
+        return new StringWritable(stringValue);
     }
 
     /*

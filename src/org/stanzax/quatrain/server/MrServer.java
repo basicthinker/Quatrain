@@ -15,9 +15,12 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import org.stanzax.quatrain.hadoop.BooleanWritable;
 import org.stanzax.quatrain.hadoop.IntWritable;
+import org.stanzax.quatrain.hadoop.LongWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
+import org.stanzax.quatrain.io.EORWritable;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
@@ -34,8 +37,8 @@ public class MrServer {
             ThreadPoolExecutor responderExecutor) throws IOException {
         this.bindAddress = new InetSocketAddress(address, port); // set up bind
         // address
-        this.channel = new InheritableThreadLocal<SocketChannel>();
-        this.callID = new InheritableThreadLocal<Long>();
+        this.threadChannel = new InheritableThreadLocal<SocketChannel>();
+        this.threadCallID = new InheritableThreadLocal<Long>();
 
         this.listener = new Thread(new Listener()); // create listener thread
         this.listener.setDaemon(false);
@@ -57,9 +60,15 @@ public class MrServer {
 
     protected void preturn(Object value) {
         // TODO Method stub
-        long id = callID.get();
+        long id = threadCallID.get();
     }
 
+    private void freturn() {
+        Responder responder = new Responder(threadChannel.get(), threadCallID.get(), false,
+                new EORWritable());
+        responderExecutor.execute(responder);
+    }
+    
     InetSocketAddress bindAddress;
 
     /** Each server holds one thread listening to target socket address */
@@ -73,9 +82,9 @@ public class MrServer {
     /** Thread pool executor to execute Responders */
     protected ThreadPoolExecutor responderExecutor;
     /** Set by Handler and retrieved by preturn() to get the connection */
-    protected final InheritableThreadLocal<SocketChannel> channel;
+    protected final InheritableThreadLocal<SocketChannel> threadChannel;
     /** Set by Handler and retrieved by preturn() to construct reply header */
-    protected final InheritableThreadLocal<Long> callID;
+    protected final InheritableThreadLocal<Long> threadCallID;
 
     protected class Thread extends java.lang.Thread {
 
@@ -174,12 +183,16 @@ public class MrServer {
             DataInputStream dataIn = new DataInputStream(
                     new ByteArrayInputStream(data));
             // Read in call ID
-            Writable callID = writable.newInstance(Integer.TYPE);
+            LongWritable callID = new LongWritable();
             try {
                 callID.readFields(dataIn);
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            // Set thread locals before creating method threads
+            threadChannel.set(channel);
+            threadCallID.set(callID.get());
+            
             // TODO Invoke corresponding method
             IntWritable parameter = 
                 (IntWritable) writable.newInstance(Integer.TYPE);
@@ -189,9 +202,10 @@ public class MrServer {
                 e.printStackTrace();
             }
             // TODO Reply to this call in preturn()
-            Responder responder = new Responder(channel, callID, 
+            Responder responder = new Responder(channel, callID.get(), false,
                     writable.valueOf(3 * parameter.get()));
             responderExecutor.execute(responder);
+            freturn(); // final return
         }
 
         private byte[] data;
@@ -200,18 +214,21 @@ public class MrServer {
 
     private class Responder implements Runnable {
 
-        public Responder(SocketChannel channel, Writable callID, Writable value) {
+        public Responder(SocketChannel channel, long callID, 
+                boolean error, Writable value) {
             this.channel = channel;
             this.callID = callID;
+            this.error = error;
             this.value = value;
         }
 
         @Override
         public void run() {
             try {
-                // Construct reply main body
+                // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
-                callID.write(dataOut);
+                new LongWritable(callID).write(dataOut);
+                new BooleanWritable(error).write(dataOut);
                 value.write(dataOut);
                 dataOut.flush();
                 // Add data length
@@ -231,7 +248,8 @@ public class MrServer {
         }
 
         private SocketChannel channel;
-        private Writable callID;
+        private long callID;
+        private boolean error;
         private Writable value;
     }
 }

@@ -18,16 +18,18 @@ import org.stanzax.quatrain.io.Log;
 public class SampleClient {
 
     private static void callback(Object returnValue) {
-        System.out.println(returnValue);
+        System.out.println("Callback invoked : " 
+                + returnValue.getClass().getName() + " : " + returnValue.toString());
     }
 
     public static void main(String[] args) {
         try {
             Log.setDebug(true);
-            MrClient client = new MrClient(InetAddress.getByName("localhost"),
-                    3122, new HadoopWrapper(), 16000);
+            MrClient client = new MrClient(InetAddress.getByName(args[0]),
+                    Integer.valueOf(args[1]), new HadoopWrapper(), 
+                    Long.valueOf(args[2]));
             // invoke non-blocking multi-return RPC
-            ResultSet records = client.invoke("functionName", String.class);
+            ResultSet records = client.invoke("functionName", Integer.TYPE);
             // incrementally retrieve partial returns
             while (records.hasMore()) {
                 // do work on partial returns
