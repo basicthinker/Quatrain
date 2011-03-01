@@ -32,4 +32,9 @@ public class ByteWritable extends org.apache.hadoop.io.ByteWritable implements
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

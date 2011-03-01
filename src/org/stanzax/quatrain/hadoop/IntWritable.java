@@ -32,4 +32,9 @@ public class IntWritable extends org.apache.hadoop.io.IntWritable implements
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

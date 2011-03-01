@@ -3,6 +3,7 @@
  */
 package org.stanzax.quatrain.hadoop;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +21,7 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
      * @see org.stanzax.quatrain.io.WritableWrapper#newInstance(java.lang.Class)
      */
     @Override
-    public Writable newInstance(Class<?> classType) {
+    public Writable newInstance(Type classType) {
         if (classType == Integer.TYPE)
             return new IntWritable();
         else if (classType == Long.TYPE)

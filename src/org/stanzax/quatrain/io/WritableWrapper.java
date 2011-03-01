@@ -3,6 +3,7 @@
  */
 package org.stanzax.quatrain.io;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
@@ -31,5 +32,5 @@ public interface WritableWrapper {
 
     public abstract Writable valueOf(Map<?, ?> mapValue);
 
-    public abstract Writable newInstance(Class<?> classType);
+    public abstract Writable newInstance(Type classType);
 }

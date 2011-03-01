@@ -26,4 +26,9 @@ public class MapWritable extends org.apache.hadoop.io.MapWritable implements
         super(other);
     }
 
+    @Override
+    public Object getValue() {
+        return values();
+    }
+
 }

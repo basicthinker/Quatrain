@@ -19,4 +19,9 @@ public class Text extends org.apache.hadoop.io.Text implements Writable {
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return toString();
+    }
+
 }

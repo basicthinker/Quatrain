@@ -32,4 +32,9 @@ public class FloatWritable extends org.apache.hadoop.io.FloatWritable implements
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

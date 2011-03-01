@@ -1,7 +1,7 @@
 /**
  * 
  */
-package org.stanzax.quatrain.server;
+package org.stanzax.quatrain.io;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,11 +15,15 @@ public class ChannelBuffer {
 
     public ChannelBuffer(SocketChannel channel) {
         this.channel = channel;
-        this.lengthBuf = ByteBuffer.allocate(4);
     }
     
     public boolean hasLength() {
         return !lengthBuf.hasRemaining();
+    }
+    
+    /** Get the number of bytes */
+    public int getLength() {
+        return dataBuf.capacity();
     }
     
     public byte[] getData() throws IOException {
@@ -52,6 +56,6 @@ public class ChannelBuffer {
     }
     
     private SocketChannel channel;
-    private ByteBuffer lengthBuf;
+    private ByteBuffer lengthBuf = ByteBuffer.allocate(4);
     private ByteBuffer dataBuf;
 }

@@ -34,4 +34,9 @@ public class DoubleWritable extends org.apache.hadoop.io.DoubleWritable
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

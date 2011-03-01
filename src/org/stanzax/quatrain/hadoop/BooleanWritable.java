@@ -34,4 +34,8 @@ public class BooleanWritable extends org.apache.hadoop.io.BooleanWritable
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
 }

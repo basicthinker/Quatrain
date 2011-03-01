@@ -37,4 +37,9 @@ public class ArrayWritable extends org.apache.hadoop.io.ArrayWritable implements
         super(valueClass, values);
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

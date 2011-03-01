@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.stanzax.quatrain.hadoop.IntWritable;
+import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
@@ -37,7 +38,7 @@ public class MrServer {
         this.callID = new InheritableThreadLocal<Long>();
 
         this.listener = new Thread(new Listener()); // create listener thread
-        this.listener.setDaemon(true);
+        this.listener.setDaemon(false);
 
         this.handlerExecutor = handlerExecutor;
         this.responderExecutor = responderExecutor;
@@ -45,27 +46,13 @@ public class MrServer {
     }
 
     public void start() {
-        try {
-            isRunning = true;
-            listener.start();
-            Log.info("Quatrain Service Starts.");
-            listener.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        isRunning = true;
+        listener.start();
+        Log.info("Quatrain Service Starts.");
     }
 
     public void stop() {
         isRunning = false;
-    }
-
-    protected void preturn(Writable value) {
-
-    }
-
-    protected void preturn(int intValue) {
-
     }
 
     protected void preturn(Object value) {
@@ -146,7 +133,7 @@ public class MrServer {
                             } else if (key.isReadable()) {
                                 ChannelBuffer channel = 
                                     (ChannelBuffer) key.attachment();
-                                doRead(channel);
+                                readAndProcess(channel);
                             }
                         }
                         selectedKeys.clear();
@@ -158,9 +145,12 @@ public class MrServer {
         }
 
         /** Read complete remote call requests */
-        private void doRead(ChannelBuffer channelBuffer) throws IOException {
+        private void readAndProcess(ChannelBuffer channelBuffer) throws IOException {
             if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
                 if (channelBuffer.tryReadData()) {
+                    if (Log.debug) Log.debug(
+                            "Read data of .length", channelBuffer.getLength());
+                    // Create and trigger handler
                     Handler handler = new Handler(
                             channelBuffer.getData(), channelBuffer.getChannel());
                     handlerExecutor.execute(handler);
@@ -181,14 +171,26 @@ public class MrServer {
 
         @Override
         public void run() {
-            DataInputStream dataIn = new DataInputStream(new ByteArrayInputStream(data));
-            Writable testNum = writable.newInstance(Integer.TYPE);
+            DataInputStream dataIn = new DataInputStream(
+                    new ByteArrayInputStream(data));
+            // Read in call ID
+            Writable callID = writable.newInstance(Integer.TYPE);
             try {
-                testNum.readFields(dataIn);
+                callID.readFields(dataIn);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            Responder responder = new Responder(channel, testNum, testNum);
+            // TODO Invoke corresponding method
+            IntWritable parameter = 
+                (IntWritable) writable.newInstance(Integer.TYPE);
+            try {
+                parameter.readFields(dataIn);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // TODO Reply to this call in preturn()
+            Responder responder = new Responder(channel, callID, 
+                    writable.valueOf(3 * parameter.get()));
             responderExecutor.execute(responder);
         }
 
@@ -209,8 +211,8 @@ public class MrServer {
             try {
                 // Construct reply main body
                 DataOutputBuffer dataOut = new DataOutputBuffer();
-                writable.valueOf(callID).write(dataOut);
-                writable.valueOf(value).write(dataOut);
+                callID.write(dataOut);
+                value.write(dataOut);
                 dataOut.flush();
                 // Add data length
                 int dataLength = dataOut.getDataLength();
@@ -222,6 +224,7 @@ public class MrServer {
                     channel.write(ByteBuffer.wrap(dataOut.getData(),
                             0, dataLength));
                 }
+                if (Log.debug) Log.debug("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();
             }

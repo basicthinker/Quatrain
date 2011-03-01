@@ -3,11 +3,13 @@
  */
 package org.stanzax.quatrain.hadoop;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import org.stanzax.quatrain.client.MrClient;
 import org.stanzax.quatrain.client.ResultSet;
+import org.stanzax.quatrain.io.Log;
 
 /**
  * @author basicthinker
@@ -15,29 +17,32 @@ import org.stanzax.quatrain.client.ResultSet;
  */
 public class SampleClient {
 
-    private static void callback(String returnValue) {
+    private static void callback(Object returnValue) {
         System.out.println(returnValue);
     }
 
     public static void main(String[] args) {
         try {
+            Log.setDebug(true);
             MrClient client = new MrClient(InetAddress.getByName("localhost"),
-                    3122, new HadoopWrapper());
+                    3122, new HadoopWrapper(), 16000);
             // invoke non-blocking multi-return RPC
-            ResultSet<String> records = client.invoke("functionName");
+            ResultSet records = client.invoke("functionName", String.class);
             // incrementally retrieve partial returns
-            while (records.hasMoreElements()) {
+            while (records.hasMore()) {
                 // do work on partial returns
                 callback(records.nextElement());
                 if (records.isPartial())
-                    System.out.println("Still working...");
+                    Log.info("Still working...");
             }
             // judge whether all returns arrive
             if (records.isPartial())
-                System.out.println("Other results are omitted.");
+                Log.info("Other results are omitted.");
             else
-                System.out.println("Fully completed.");
+                Log.info("Fully completed.");
         } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

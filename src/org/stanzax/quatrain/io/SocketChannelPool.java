@@ -6,6 +6,7 @@ package org.stanzax.quatrain.io;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -40,6 +41,17 @@ public class SocketChannelPool {
             return;
     }
 
+    public int size() {
+        return pool.size();
+    }
+    
+    public void clear() {
+        for (Map.Entry<SocketAddress, ManagedSocketChannel> entry : pool.entrySet()) {
+            entry.getValue().close();
+        }
+        pool.clear();
+    }
+    
     /** Thread-safe hash table to restore established socket channels */
     private ConcurrentHashMap<SocketAddress, ManagedSocketChannel> pool;
 
@@ -63,6 +75,16 @@ public class SocketChannelPool {
             return lastActiveTime;
         }
 
+        /** Try to close both this channel and its underlying socket */
+        public void close() {
+            try {
+                channel.socket().close();
+                channel.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        
         private SocketChannel channel;
         /** The time this socket channel was given back to pool */
         private volatile long lastActiveTime;

@@ -8,6 +8,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.server.MrServer;
 
 /**
@@ -76,10 +77,10 @@ public class SampleServer extends MrServer {
      */
     public static void main(String[] args) {
         try {
+            Log.setDebug(true);
             SampleServer server = new SampleServer("localhost", 3122, 3, 5);
             server.start();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

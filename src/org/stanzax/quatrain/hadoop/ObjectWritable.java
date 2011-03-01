@@ -34,4 +34,9 @@ public class ObjectWritable extends org.apache.hadoop.io.ObjectWritable
         super(declaredClass, instance);
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

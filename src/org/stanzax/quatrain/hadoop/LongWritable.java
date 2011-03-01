@@ -32,4 +32,9 @@ public class LongWritable extends org.apache.hadoop.io.LongWritable implements
         super();
     }
 
+    @Override
+    public Object getValue() {
+        return get();
+    }
+
 }

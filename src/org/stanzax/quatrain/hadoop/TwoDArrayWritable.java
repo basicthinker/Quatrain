@@ -32,4 +32,9 @@ public class TwoDArrayWritable extends org.apache.hadoop.io.TwoDArrayWritable
             org.apache.hadoop.io.Writable[][] values) {
         super(valueClass, values);
     }
+
+    @Override
+    public Object getValue() {
+        return get();
+    }
 }
