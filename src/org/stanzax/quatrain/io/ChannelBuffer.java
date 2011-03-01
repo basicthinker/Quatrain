@@ -21,38 +21,54 @@ public class ChannelBuffer {
         return !lengthBuf.hasRemaining();
     }
     
-    /** Get the number of bytes */
+    /** Get the number of bytes stored in data buffer */
     public int getLength() {
-        return dataBuf.capacity();
+        if (dataBuf == null) return 0;
+        else return dataBuf.capacity();
     }
     
-    public byte[] getData() throws IOException {
-        if (dataBuf == null) return null;
-        else if (dataBuf.hasRemaining())
-            throw new IOException("ChannelBuffer: getData() before data are ready.");
-        else return dataBuf.array();
+    /** Return data of complete frame and clear this channel buffer */
+    public byte[] getData() {
+        try {
+            if (dataBuf == null || dataBuf.hasRemaining()) return null;
+            else return dataBuf.array();
+        } finally {
+            clear();
+        }
     }
     
     public SocketChannel getChannel() {
         return channel;
     }
     
-    public boolean tryReadLength() throws IOException {
-        channel.read(lengthBuf);
+    public boolean tryReadLength() {
+        try {
+            channel.read(lengthBuf);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return !lengthBuf.hasRemaining();
     }
     
-    public boolean tryReadData() throws IOException {
+    /** Try reading from channel and return if new frame is ready */
+    public boolean tryReadData() {
         if (dataBuf == null) {
             if (!lengthBuf.hasRemaining()) {
                 lengthBuf.flip();
                 dataBuf = ByteBuffer.allocate(lengthBuf.getInt());
-            } else throw new IOException(
-                    "ChannelBuffer: tryReadData() before length is ready.");
+            } else return false;
         }
-        if (channel.read(dataBuf) > 0) {
-            return !dataBuf.hasRemaining();
-        } else return false;
+        try {
+            channel.read(dataBuf);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return !dataBuf.hasRemaining();
+    }
+    
+    public void clear() {
+        lengthBuf.clear();
+        dataBuf = null;
     }
     
     private SocketChannel channel;
