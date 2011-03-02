@@ -20,7 +20,7 @@ import org.stanzax.quatrain.hadoop.IntWritable;
 import org.stanzax.quatrain.hadoop.LongWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
-import org.stanzax.quatrain.io.EORWritable;
+import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
@@ -65,7 +65,7 @@ public class MrServer {
 
     private void freturn() {
         Responder responder = new Responder(threadChannel.get(), threadCallID.get(), false,
-                new EORWritable());
+                new EOR());
         responderExecutor.execute(responder);
     }
     

@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.stanzax.quatrain.hadoop.BooleanWritable;
 import org.stanzax.quatrain.hadoop.StringWritable;
+import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
 
@@ -45,15 +46,13 @@ public class ResultSet {
     
     /** Whether this set contains all expected results including possible errors */
     public boolean isPartial() {
-        return isPartial;
+        return !isDone;
     }
     
     public boolean hasMore() {
         if (!replyQueue.isEmpty()) {
             return true;
-        } else if (isTimedOut) {
-            return false;
-        } else if (!isPartial) {
+        } else if (isTimedOut || isDone) {
             return false;
         } else {
             Object element = nextElement();
@@ -65,13 +64,19 @@ public class ResultSet {
     }
 
     public Object nextElement() {
-        try {
-            Object element = replyQueue.poll(timeout, TimeUnit.MILLISECONDS);
-            if (element == null) isTimedOut = true;
-            return element;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        if (!isDone && !isTimedOut) {
+            try {
+                Object element = replyQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                if (element == null) isTimedOut = true;
+                else if (element instanceof EOR) {
+                    isDone = true;
+                    return nextElement();
+                }
+                return element;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } else return replyQueue.poll();
         if (System.currentTimeMillis() - beginTime > timeout) {
             isTimedOut = true;
             return null;
@@ -99,17 +104,14 @@ public class ResultSet {
                     errors.add(errorMessage.toString());
                 } else if (dataIn.available() == 0) { 
                     // end of frame denoting final return
-                    isPartial = false;
+                    replyQueue.add(new EOR());
                 } else {
                     while (dataIn.available() > 0) {
                         returnType.readFields(dataIn);
-                        replyQueue.offer(returnType.getValue(),
-                                timeout, TimeUnit.MILLISECONDS);
+                        replyQueue.add(returnType.getValue());
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         } else return;
@@ -139,7 +141,7 @@ public class ResultSet {
     private LinkedBlockingQueue<Object> replyQueue = new LinkedBlockingQueue<Object>();
     private Vector<String> errors = new Vector<String>();
     /** Not holding value, only for deserialization */
-    private volatile boolean isPartial = true;
+    private volatile boolean isDone = false;
     private volatile boolean isTimedOut = false;
     private long beginTime = System.currentTimeMillis();
     

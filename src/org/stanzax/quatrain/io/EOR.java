@@ -12,7 +12,7 @@ import java.io.IOException;
  * @author basicthinker
  *
  */
-public class EORWritable implements Writable {
+public class EOR implements Writable {
 
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.Writable#getValue()
