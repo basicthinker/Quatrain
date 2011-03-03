@@ -15,9 +15,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.stanzax.quatrain.hadoop.LongWritable;
+import org.stanzax.quatrain.hadoop.IntWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
@@ -60,7 +60,7 @@ public class MrClient {
 
     public ResultSet invoke(String functionName,
             Object[] arguments, Type returnType) {
-        long callID = counter.addAndGet(1);
+        int callID = counter.addAndGet(1);
         // Early create and register result set for awaiting reply
         ResultSet results = new ResultSet(writable.newInstance(returnType), timeout);
         results.register(callID);
@@ -68,7 +68,7 @@ public class MrClient {
             SocketChannel channel = channelPool.getSocketChannel(address);
             DataOutputBuffer dataOut = new DataOutputBuffer();
             // Write call ID
-            LongWritable writableCallID = new LongWritable(callID);
+            IntWritable writableCallID = new IntWritable(callID);
             writableCallID.write(dataOut);
             // TODO Write function name and parameters
             writable.valueOf(100).write(dataOut);
@@ -106,7 +106,7 @@ public class MrClient {
     private Thread listener = new Thread(new Listener());
     
     /** Static call ID counter */
-    private static AtomicLong counter = new AtomicLong();
+    private static AtomicInteger counter = new AtomicInteger();
     /** Static socket channel pool */
     private static SocketChannelPool channelPool = new SocketChannelPool();
     
@@ -148,7 +148,7 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
-                    LongWritable callID = new LongWritable();
+                    IntWritable callID = new IntWritable();
                     callID.readFields(dataIn);
                     // Pass on data to corresponding result set
                     ResultSet results = ResultSet.get(callID.get());

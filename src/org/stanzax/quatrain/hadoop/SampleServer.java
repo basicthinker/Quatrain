@@ -39,7 +39,7 @@ public class SampleServer extends MrServer {
     }
 
     /** Remotely called procedure */
-    private void functionName() {
+    private void MrProcedure() {
         int[] data = { 0, 1, 2, 3, 4, 5, 6 };
         for (int index : data) {
             new Thread(new MrWorker(data[index])).start();

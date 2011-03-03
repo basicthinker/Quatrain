@@ -123,9 +123,13 @@ public class MrServer {
         }
         
         public void start() {
-            super.start();
             // according to two-level ordering protocal
             orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
+
+            super.start();
+            
+            // according to two-level ordering protocal
+            orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
         }
 
     }
@@ -210,20 +214,23 @@ public class MrServer {
         public void run() {
             DataInputStream dataIn = new DataInputStream(
                     new ByteArrayInputStream(data));
-            // Read in call ID
-            LongWritable callID = new LongWritable();
+            // Read in integer call ID
+            IntWritable rawCallID = new IntWritable();
             try {
-                callID.readFields(dataIn);
+                rawCallID.readFields(dataIn);
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            // Transfer original call ID to inner long presentation
+            long callID = channel.hashCode();
+            callID = (callID << 32) + rawCallID.get();
             // Set thread locals before creating method threads
+            threadCallID.set(callID);
             threadChannel.set(channel);
-            threadCallID.set(callID.get());
             
-            orders.put(callID.get(), new Order());
+            orders.put(callID, new Order());
             // First-level primitive according to two-level ordering protocal
-            orders.get(callID.get()).first.incrementAndGet(); // before ending freturn()
+            orders.get(callID).first.incrementAndGet(); // before ending freturn()
             
             // TODO Invoke corresponding procedure
             IntWritable parameter = new IntWritable();
@@ -239,7 +246,7 @@ public class MrServer {
             preturn(1);
             
             // First-level primitive according to two-level ordering protocal
-            orders.get(callID.get()).first.decrementAndGet(); // shrink after thread creation
+            orders.get(callID).first.decrementAndGet(); // shrink after thread creation
             
             freturn(); // final return
         }
@@ -263,7 +270,8 @@ public class MrServer {
             try {
                 // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
-                new LongWritable(callID).write(dataOut);
+                // cast inner long call ID to original integer type
+                new IntWritable((int)callID).write(dataOut);
                 new BooleanWritable(error).write(dataOut);
                 writable.valueOf(value).write(dataOut);
                 dataOut.flush();
@@ -281,7 +289,7 @@ public class MrServer {
                 // Second-level primitive according to two-level ordering protocol
                 orders.get(callID).second.decrementAndGet(); // shrink after data transmission
                 
-                if (Log.debug) Log.debug("Reply to .callID .length", callID, dataLength);
+                if (Log.debug) Log.debug("Reply to .callID .length", (int)callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();
             }
