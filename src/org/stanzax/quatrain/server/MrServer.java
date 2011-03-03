@@ -13,6 +13,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.stanzax.quatrain.hadoop.BooleanWritable;
@@ -39,7 +40,7 @@ public class MrServer {
         this.threadChannel = new InheritableThreadLocal<SocketChannel>();
         this.threadCallID = new InheritableThreadLocal<Long>();
 
-        this.listener = new Thread(new Listener()); // create listener thread
+        this.listener = new java.lang.Thread(new Listener()); // create listener thread
         this.listener.setDaemon(false);
 
         this.handlerExecutor = handlerExecutor;
@@ -60,6 +61,8 @@ public class MrServer {
     protected void preturn(Object value) {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
+        // Second-level primitive according to the two-level ordering protocol
+        orders.get(callID).second.incrementAndGet(); // locate between first-level primitives
         Responder responder = new Responder(channel, callID, false,
                 value);
         responderExecutor.execute(responder);
@@ -68,15 +71,24 @@ public class MrServer {
     private void freturn() {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
+        
+        // Order according to the two-level ordering protocol
+        Order order = orders.get(callID);
+        while (order.first.get() != 0 || order.second.get() != 0);
+        
         Responder responder = new Responder(channel, callID, false,
                 new EOR());
         responderExecutor.execute(responder);
+        
+        // Final break according to the two-level ordering protocol
+        while (order.second.get() == 0);
+        orders.remove(callID);
     }
     
     InetSocketAddress bindAddress;
 
     /** Each server holds one thread listening to target socket address */
-    protected Thread listener;
+    protected java.lang.Thread listener;
     /** Denote whether this server is still running */
     protected volatile boolean isRunning;
     /** Writable factory to produce proper type of instance */
@@ -89,6 +101,12 @@ public class MrServer {
     protected final InheritableThreadLocal<SocketChannel> threadChannel;
     /** Set by Handler and retrieved by preturn() to construct reply header */
     protected final InheritableThreadLocal<Long> threadCallID;
+    /**
+     * Save thread running states for each request 
+     * according to the two-level ordering protocol
+     */
+    protected ConcurrentHashMap<Long, Order> orders = 
+        new ConcurrentHashMap<Long, Order>();
 
     protected class Thread extends java.lang.Thread {
 
@@ -102,6 +120,12 @@ public class MrServer {
 
         public Thread(String name) {
             super(name);
+        }
+        
+        public void start() {
+            super.start();
+            // according to two-level ordering protocal
+            orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
         }
 
     }
@@ -197,7 +221,11 @@ public class MrServer {
             threadChannel.set(channel);
             threadCallID.set(callID.get());
             
-            // TODO Invoke corresponding method
+            orders.put(callID.get(), new Order());
+            // First-level primitive according to two-level ordering protocal
+            orders.get(callID.get()).first.incrementAndGet(); // before ending freturn()
+            
+            // TODO Invoke corresponding procedure
             IntWritable parameter = new IntWritable();
             try {
                 parameter.readFields(dataIn);
@@ -208,8 +236,12 @@ public class MrServer {
             returnValue[0] = "1st";
             returnValue[1] = "2nd";
             // TODO Reply to this call in preturn()
-            preturn(returnValue);
-            // freturn(); // final return
+            preturn(1);
+            
+            // First-level primitive according to two-level ordering protocal
+            orders.get(callID.get()).first.decrementAndGet(); // shrink after thread creation
+            
+            freturn(); // final return
         }
 
         private byte[] data;
@@ -245,6 +277,10 @@ public class MrServer {
                     channel.write(ByteBuffer.wrap(dataOut.getData(),
                             0, dataLength));
                 }
+                
+                // Second-level primitive according to two-level ordering protocol
+                orders.get(callID).second.decrementAndGet(); // shrink after data transmission
+                
                 if (Log.debug) Log.debug("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();

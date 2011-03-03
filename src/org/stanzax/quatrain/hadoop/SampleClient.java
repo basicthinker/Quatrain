@@ -29,7 +29,7 @@ public class SampleClient {
                     Integer.valueOf(args[1]), new HadoopWrapper(), 
                     Long.valueOf(args[2]));
             // invoke non-blocking multi-return RPC
-            ResultSet records = client.invoke("functionName", String.class);
+            ResultSet records = client.invoke("functionName", Integer.TYPE);
             // incrementally retrieve partial returns
             while (records.hasMore()) {
                 // do work on partial returns
