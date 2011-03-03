@@ -4,16 +4,13 @@
 package org.stanzax.quatrain.hadoop;
 
 import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Map;
-
 import org.stanzax.quatrain.io.Writable;
 
 /**
  * @author basicthinker
  * 
  */
-public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
+public class HadoopWrapper extends org.stanzax.quatrain.io.WritableWrapper {
 
     /*
      * (non-Javadoc)
@@ -22,6 +19,7 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
      */
     @Override
     public Writable newInstance(Type classType) {
+        // most primitive types
         if (classType == Integer.TYPE)
             return new IntWritable();
         else if (classType == Long.TYPE)
@@ -38,6 +36,36 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
             return new StringWritable();
         else
             throw new IllegalArgumentException("Invalid class type");
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see org.stanzax.quatrain.io.WritableWrapper#valueOf(java.lang.Object)
+     */
+    @Override
+    public Writable valueOf(Object object) {
+        if (object instanceof Integer) {
+            return new IntWritable((Integer)object);
+        } else if (object instanceof Long) {
+            return new LongWritable((Long)object);
+        } else if (object instanceof Boolean) {
+            return new BooleanWritable((Boolean)object);
+        } else if (object instanceof Byte) {
+            return new ByteWritable((Byte)object);
+        } else if (object instanceof Double) {
+            return new DoubleWritable((Double)object);
+        } else if (object instanceof Float) {
+            return new FloatWritable((Float)object);
+        } else if (object instanceof String) {
+            return new StringWritable((String)object);
+        } else if (object instanceof Writable){
+            return (Writable)object;
+        } else if (object.getClass().isArray()) {
+            return new ArrayWritable((Object[])object);
+        } else {
+            return new ObjectWritable(object);
+        }
     }
 
     /*
@@ -76,8 +104,8 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
      * @see org.stanzax.quatrain.io.WritableWrapper#valueOf(char)
      */
     @Override
-    public Writable valueOf(char charValue) {
-        return new ByteWritable(charValue);
+    public Writable valueOf(byte byteValue) {
+        return new ByteWritable(byteValue);
     }
 
     /*
@@ -105,34 +133,8 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
         return new StringWritable(stringValue);
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see org.stanzax.quatrain.io.WritableWrapper#valueOf(java.lang.Object)
-     */
     @Override
-    public Writable valueOf(Object objValue) {
-        return new ObjectWritable();
+    public Writable valueOf(Object[] listValue) {
+        return new ArrayWritable(listValue);
     }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see org.stanzax.quatrain.io.WritableWrapper#valueOf(java.util.List)
-     */
-    @Override
-    public Writable valueOf(List<?> listValue) {
-        return new ArrayWritable(ObjectWritable.class);
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see org.stanzax.quatrain.io.WritableWrapper#valueOf(java.util.Map)
-     */
-    @Override
-    public Writable valueOf(Map<?, ?> mapValue) {
-        return new MapWritable();
-    }
-
 }

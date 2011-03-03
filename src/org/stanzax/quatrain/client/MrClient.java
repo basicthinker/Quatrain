@@ -148,7 +148,7 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
-                    LongWritable callID = (LongWritable)writable.newInstance(Long.TYPE);
+                    LongWritable callID = new LongWritable();
                     callID.readFields(dataIn);
                     // Pass on data to corresponding result set
                     ResultSet results = ResultSet.get(callID.get());

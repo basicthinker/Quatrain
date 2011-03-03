@@ -37,4 +37,9 @@ public class LongWritable extends org.apache.hadoop.io.LongWritable implements
         return get();
     }
 
+    @Override
+    public void setValue(Object value) {
+        set((Long)value);
+    }
+
 }

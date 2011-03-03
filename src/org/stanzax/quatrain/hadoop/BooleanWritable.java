@@ -38,4 +38,9 @@ public class BooleanWritable extends org.apache.hadoop.io.BooleanWritable
     public Object getValue() {
         return get();
     }
+
+    @Override
+    public void setValue(Object value) {
+        set((Boolean)value);
+    }
 }

@@ -38,4 +38,9 @@ public class EOR implements Writable {
         return;
     }
 
+    @Override
+    public void setValue(Object value) {
+        return;
+    }
+
 }

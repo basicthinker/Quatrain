@@ -37,4 +37,9 @@ public class FloatWritable extends org.apache.hadoop.io.FloatWritable implements
         return get();
     }
 
+    @Override
+    public void setValue(Object value) {
+        set((Float)value);
+    }
+
 }

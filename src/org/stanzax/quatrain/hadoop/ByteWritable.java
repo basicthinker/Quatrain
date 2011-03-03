@@ -24,8 +24,8 @@ import org.stanzax.quatrain.io.Writable;
 public class ByteWritable extends org.apache.hadoop.io.ByteWritable implements
         Writable {
 
-    public ByteWritable(char charValue) {
-        super((byte) charValue);
+    public ByteWritable(byte byteValue) {
+        super((byte) byteValue);
     }
 
     public ByteWritable() {
@@ -35,6 +35,11 @@ public class ByteWritable extends org.apache.hadoop.io.ByteWritable implements
     @Override
     public Object getValue() {
         return get();
+    }
+
+    @Override
+    public void setValue(Object value) {
+        set((Byte)value);
     }
 
 }

@@ -37,4 +37,9 @@ public class IntWritable extends org.apache.hadoop.io.IntWritable implements
         return get();
     }
 
+    @Override
+    public void setValue(Object value) {
+        set((Integer)value);
+    }
+
 }

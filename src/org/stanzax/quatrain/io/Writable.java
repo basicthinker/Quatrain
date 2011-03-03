@@ -50,5 +50,6 @@ public interface Writable {
      */
     void readFields(DataInput in) throws IOException;
     
+    void setValue(Object value);
     Object getValue();
 }

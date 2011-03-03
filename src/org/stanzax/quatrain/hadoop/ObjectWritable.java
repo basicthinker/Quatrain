@@ -39,4 +39,9 @@ public class ObjectWritable extends org.apache.hadoop.io.ObjectWritable
         return get();
     }
 
+    @Override
+    public void setValue(Object value) {
+        set(value);
+    }
+
 }

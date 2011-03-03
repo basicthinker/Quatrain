@@ -24,4 +24,9 @@ public class StringWritable extends org.apache.hadoop.io.Text implements Writabl
         return toString();
     }
 
+    @Override
+    public void setValue(Object value) {
+        set((String)value);
+    }
+
 }

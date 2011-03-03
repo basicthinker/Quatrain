@@ -22,7 +22,6 @@ import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
-import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
@@ -59,12 +58,17 @@ public class MrServer {
     }
 
     protected void preturn(Object value) {
-        // TODO Method stub
-        long id = threadCallID.get();
+        SocketChannel channel = threadChannel.get();
+        long callID = threadCallID.get();
+        Responder responder = new Responder(channel, callID, false,
+                value);
+        responderExecutor.execute(responder);
     }
 
     private void freturn() {
-        Responder responder = new Responder(threadChannel.get(), threadCallID.get(), false,
+        SocketChannel channel = threadChannel.get();
+        long callID = threadCallID.get();
+        Responder responder = new Responder(channel, callID, false,
                 new EOR());
         responderExecutor.execute(responder);
     }
@@ -194,18 +198,18 @@ public class MrServer {
             threadCallID.set(callID.get());
             
             // TODO Invoke corresponding method
-            IntWritable parameter = 
-                (IntWritable) writable.newInstance(Integer.TYPE);
+            IntWritable parameter = new IntWritable();
             try {
                 parameter.readFields(dataIn);
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            String[] returnValue = new String[2];
+            returnValue[0] = "1st";
+            returnValue[1] = "2nd";
             // TODO Reply to this call in preturn()
-            Responder responder = new Responder(channel, callID.get(), false,
-                    writable.valueOf(3 * parameter.get()));
-            responderExecutor.execute(responder);
-            freturn(); // final return
+            preturn(returnValue);
+            // freturn(); // final return
         }
 
         private byte[] data;
@@ -215,7 +219,7 @@ public class MrServer {
     private class Responder implements Runnable {
 
         public Responder(SocketChannel channel, long callID, 
-                boolean error, Writable value) {
+                boolean error, Object value) {
             this.channel = channel;
             this.callID = callID;
             this.error = error;
@@ -229,7 +233,7 @@ public class MrServer {
                 DataOutputBuffer dataOut = new DataOutputBuffer();
                 new LongWritable(callID).write(dataOut);
                 new BooleanWritable(error).write(dataOut);
-                value.write(dataOut);
+                writable.valueOf(value).write(dataOut);
                 dataOut.flush();
                 // Add data length
                 int dataLength = dataOut.getDataLength();
@@ -250,6 +254,6 @@ public class MrServer {
         private SocketChannel channel;
         private long callID;
         private boolean error;
-        private Writable value;
+        private Object value;
     }
 }

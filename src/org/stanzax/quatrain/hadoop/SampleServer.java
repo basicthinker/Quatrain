@@ -48,7 +48,7 @@ public class SampleServer extends MrServer {
         try {
             // partially return
             preturn("0 arrives without awaiting -1.");
-            Thread.sleep(1000000); // simulates calculation or straggler
+            Thread.sleep(1000); // simulates calculation or straggler
             preturn("-1 arrives without defering 0.");
         } catch (InterruptedException e) {
             // when not all preturns finish
