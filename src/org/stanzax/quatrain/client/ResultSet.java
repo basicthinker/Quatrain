@@ -50,21 +50,20 @@ public class ResultSet {
     }
     
     public boolean hasMore() {
-        if (!replyQueue.isEmpty()) {
+        if (buffer != null) return true;
+        Object element = nextElement();
+        if (element != null) {
+            buffer = element;
             return true;
-        } else if (isTimedOut || isDone) {
-            return false;
-        } else {
-            Object element = nextElement();
-            if (element != null) {
-                replyQueue.add(element);
-                return true;
-            } return false;
-        }
+        } else return false;
     }
 
     public Object nextElement() {
-        if (!isDone && !isTimedOut) {
+        if (buffer != null) {
+            Object element = buffer;
+            buffer = null;
+            return element;
+        } else if (!isDone && !isTimedOut) {
             try {
                 Object element = replyQueue.poll(timeout, TimeUnit.MILLISECONDS);
                 if (element == null) isTimedOut = true;
@@ -144,7 +143,7 @@ public class ResultSet {
     private volatile boolean isDone = false;
     private volatile boolean isTimedOut = false;
     private long beginTime = System.currentTimeMillis();
-    
+    private Object buffer = null;
     private static ConcurrentHashMap<Long, ResultSet> waiting = 
         new ConcurrentHashMap<Long, ResultSet>();
 }

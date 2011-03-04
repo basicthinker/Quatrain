@@ -6,23 +6,30 @@ package org.stanzax.quatrain.server;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.stanzax.quatrain.hadoop.BooleanWritable;
+import org.stanzax.quatrain.hadoop.HadoopWrapper;
 import org.stanzax.quatrain.hadoop.IntWritable;
-import org.stanzax.quatrain.hadoop.LongWritable;
+import org.stanzax.quatrain.hadoop.StringWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
+import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
@@ -31,6 +38,15 @@ import org.stanzax.quatrain.io.WritableWrapper;
  */
 public class MrServer {
 
+    public MrServer(String address, int port, int handlerCount,
+            int responderCount) throws IOException {
+        this(address, port, new HadoopWrapper(), new ThreadPoolExecutor(
+                handlerCount, 2 * handlerCount, 6, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>()), new ThreadPoolExecutor(
+                responderCount, 2 * responderCount, 6, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>()));
+    }
+    
     /** User can configure server by providing refined thread pool executors. */
     public MrServer(String address, int port, WritableWrapper wrapper,
             ThreadPoolExecutor handlerExecutor,
@@ -49,6 +65,30 @@ public class MrServer {
     }
 
     public void start() {
+        // Store all user-defined methods in hash map for quick retrieval
+        Method[] publicMethods = this.getClass().getMethods();
+        for (Method method : publicMethods) {
+            procedures.put(method.getName(), method);
+        }
+        // Remove all system procedures for convenience as well as security
+        procedures.remove("main");
+        procedures.remove("start");
+        procedures.remove("stop");
+        procedures.remove("wait");
+        procedures.remove("equals");
+        procedures.remove("toString");
+        procedures.remove("hashCode");
+        procedures.remove("getClass");
+        procedures.remove("notify");
+        procedures.remove("notifyAll");
+        // Print all registered methods for adminstrator to verify
+        System.out.println("All registered procedures:");
+        Set<String> procedureNames = procedures.keySet();
+        for (String name : procedureNames) {
+            System.out.println(" - " + name);
+        }
+        System.out.println("Please garantee no extra methods exit for security concern.");
+        
         isRunning = true;
         listener.start();
         Log.info("Quatrain Service Starts.");
@@ -63,6 +103,8 @@ public class MrServer {
         long callID = threadCallID.get();
         // Second-level primitive according to the two-level ordering protocol
         orders.get(callID).second.incrementAndGet(); // locate between first-level primitives
+        if (Log.debug) Log.debug("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
+        
         Responder responder = new Responder(channel, callID, false,
                 value);
         responderExecutor.execute(responder);
@@ -81,7 +123,8 @@ public class MrServer {
         responderExecutor.execute(responder);
         
         // Final break according to the two-level ordering protocol
-        while (order.second.get() == 0);
+        while (order.second.get() >= 0);
+        if (Log.debug) Log.debug("Order removed for", callID);
         orders.remove(callID);
     }
     
@@ -99,6 +142,7 @@ public class MrServer {
     protected ThreadPoolExecutor responderExecutor;
     /** Set by Handler and retrieved by preturn() to get the connection */
     protected final InheritableThreadLocal<SocketChannel> threadChannel;
+    protected Random random = new Random();
     /** Set by Handler and retrieved by preturn() to construct reply header */
     protected final InheritableThreadLocal<Long> threadCallID;
     /**
@@ -107,33 +151,45 @@ public class MrServer {
      */
     protected ConcurrentHashMap<Long, Order> orders = 
         new ConcurrentHashMap<Long, Order>();
+    /** Method hash map */
+    protected HashMap<String, Method> procedures =
+        new HashMap<String, Method>();
 
     protected class Thread extends java.lang.Thread {
 
-        public Thread() {
-            super();
-        }
-
         public Thread(Runnable target) {
-            super(target);
-        }
-
-        public Thread(String name) {
-            super(name);
+            super(new OrderRunnable(target));
         }
         
         public void start() {
-            // according to two-level ordering protocal
+            // according to two-level ordering protocol
             orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
-
+            if (Log.debug) Log.debug("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
             super.start();
-            
-            // according to two-level ordering protocal
-            orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
         }
 
+        public final void run() {
+            super.run();
+        }
     }
 
+    private class OrderRunnable implements Runnable {
+        public OrderRunnable(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public void run() {
+            runnable.run();
+            // according to two-level ordering protocol
+            orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
+            if (Log.debug) Log.debug("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+        }
+        
+        private Runnable runnable;
+
+    }
+    
     private class Listener implements Runnable {
 
         public Listener() throws IOException {
@@ -212,42 +268,48 @@ public class MrServer {
 
         @Override
         public void run() {
-            DataInputStream dataIn = new DataInputStream(
-                    new ByteArrayInputStream(data));
-            // Read in integer call ID
-            IntWritable rawCallID = new IntWritable();
             try {
+                DataInputStream dataIn = new DataInputStream(
+                        new ByteArrayInputStream(data));
+                
+                // Read in integer call ID
+                IntWritable rawCallID = new IntWritable();
                 rawCallID.readFields(dataIn);
+                // Transfer original call ID to inner long type
+                long callID = random.nextInt();
+                callID = (callID << 32) + rawCallID.get();
+                // Set thread locals before creating method threads
+                threadCallID.set(callID);
+                threadChannel.set(channel);
+                
+                // Create order for the two-level ordering protocol 
+                orders.put(callID, new Order());
+                // First-level primitive according to two-level ordering protocol
+                orders.get(callID).first.incrementAndGet(); // before ending freturn()
+                if (Log.debug) Log.debug("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+                
+                // Invoke corresponding procedure
+                StringWritable procedureName = new StringWritable();
+                procedureName.readFields(dataIn);
+                Method procedure = procedures.get(procedureName.getValue());
+                Class<?>[] parameterTypes = procedure.getParameterTypes();
+                int parameterCount = parameterTypes.length;
+                Object[] parameters = new Object[parameterCount];
+                for (int i = 0; i < parameterCount; ++i) {
+                    Writable writableParameter = writable.newInstance(parameterTypes[i]);
+                    writableParameter.readFields(dataIn);
+                    parameters[i] = writableParameter.getValue();
+                }
+                procedure.invoke(MrServer.this, parameters);
+                
+                // First-level primitive according to two-level ordering protocal
+                orders.get(callID).first.decrementAndGet(); // shrink after thread creation
+                if (Log.debug) Log.debug("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            // Transfer original call ID to inner long presentation
-            long callID = channel.hashCode();
-            callID = (callID << 32) + rawCallID.get();
-            // Set thread locals before creating method threads
-            threadCallID.set(callID);
-            threadChannel.set(channel);
-            
-            orders.put(callID, new Order());
-            // First-level primitive according to two-level ordering protocal
-            orders.get(callID).first.incrementAndGet(); // before ending freturn()
-            
-            // TODO Invoke corresponding procedure
-            IntWritable parameter = new IntWritable();
-            try {
-                parameter.readFields(dataIn);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-            }
-            String[] returnValue = new String[2];
-            returnValue[0] = "1st";
-            returnValue[1] = "2nd";
-            // TODO Reply to this call in preturn()
-            preturn(1);
-            
-            // First-level primitive according to two-level ordering protocal
-            orders.get(callID).first.decrementAndGet(); // shrink after thread creation
-            
+            } 
             freturn(); // final return
         }
 
@@ -288,8 +350,7 @@ public class MrServer {
                 
                 // Second-level primitive according to two-level ordering protocol
                 orders.get(callID).second.decrementAndGet(); // shrink after data transmission
-                
-                if (Log.debug) Log.debug("Reply to .callID .length", (int)callID, dataLength);
+                if (Log.debug) Log.debug("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();
             }

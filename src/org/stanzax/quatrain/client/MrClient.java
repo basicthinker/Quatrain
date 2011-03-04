@@ -53,13 +53,13 @@ public class MrClient {
     public void useRemote(SocketAddress address) {
         this.address = address;
     }
-
-    public ResultSet invoke(String functionName, Type returnType) {
-        return invoke(functionName, new Object[0], returnType);
+    
+    public ResultSet invoke(Type returnType, String procedureName) {
+        return invoke(returnType, procedureName, new Object[0]);
     }
-
-    public ResultSet invoke(String functionName,
-            Object[] arguments, Type returnType) {
+    
+    public ResultSet invoke(Type returnType, String procedureName,
+            Object...parameters) {
         int callID = counter.addAndGet(1);
         // Early create and register result set for awaiting reply
         ResultSet results = new ResultSet(writable.newInstance(returnType), timeout);
@@ -70,8 +70,11 @@ public class MrClient {
             // Write call ID
             IntWritable writableCallID = new IntWritable(callID);
             writableCallID.write(dataOut);
-            // TODO Write function name and parameters
-            writable.valueOf(100).write(dataOut);
+            
+            writable.valueOf(procedureName).write(dataOut);
+            for (Object parameter : parameters) {
+                writable.valueOf(parameter).write(dataOut);
+            }
             dataOut.flush();
             
             int dataLength = dataOut.getDataLength();
