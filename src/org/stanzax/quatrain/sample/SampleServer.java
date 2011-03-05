@@ -1,7 +1,7 @@
 /**
  * 
  */
-package org.stanzax.quatrain.hadoop;
+package org.stanzax.quatrain.sample;
 
 import java.io.IOException;
 import org.stanzax.quatrain.io.Log;
@@ -20,7 +20,7 @@ public class SampleServer extends MrServer {
 
 
     /** Remotely called procedure */
-    public void ProcedureName(int count) {
+    public void SampleProcedure(int count) {
         for (int i = 0; i < count; ++i) {
             new Thread(new Runnable() {
                 public void run() {
@@ -35,6 +35,7 @@ public class SampleServer extends MrServer {
      */
     public static void main(String[] args) {
         try {
+            // Set log options, combination of NONE, ACTION and STATE
             Log.setDebug(Log.ACTION + Log.STATE);
             SampleServer server = new SampleServer("localhost", 3122, 3, 5);
             server.start();

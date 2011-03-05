@@ -1,11 +1,12 @@
 /**
  * 
  */
-package org.stanzax.quatrain.hadoop;
+package org.stanzax.quatrain.sample;
 
 import java.net.InetAddress;
 import org.stanzax.quatrain.client.MrClient;
 import org.stanzax.quatrain.client.ResultSet;
+import org.stanzax.quatrain.hadoop.HadoopWrapper;
 import org.stanzax.quatrain.io.Log;
 
 /**
@@ -17,8 +18,8 @@ public class SampleClient {
     static int expected;
     
     private static void callback(Object returnValue) {
-        if (returnValue.equals("3.1415926")) --expected;
-        else Log.info("Return Contenct Wrong", returnValue.toString());
+        if (returnValue.equals("3.1415926")) --expected; // one return arrives
+        else Log.info("WRONG RETURN", returnValue.toString());
     }
 
     /**
@@ -28,25 +29,28 @@ public class SampleClient {
      */
     public static void main(String[] args) {
         try {
+            // Set log options, combination of NONE, ACTION and STATE
             Log.setDebug(Log.ACTION + Log.STATE);
+            
             MrClient client = new MrClient(InetAddress.getByName(args[0]),
                     Integer.valueOf(args[1]), new HadoopWrapper(), 
                     Long.valueOf(args[2]));
 
-            int parameter = (int)(Math.random() * 20);
-            expected = parameter;
-            // invoke non-blocking multi-return RPC
-            ResultSet records = client.invoke(String.class, "ProcedureName", parameter);
+            int parameter = (int)(Math.random() * 20); // prepare a random parameter
+            // Invoke non-blocking multi-return RPC.
+            // The sample procedure returns pi strings with number equal to parameter
+            expected = parameter; // for checking whether all returns arrive
+            ResultSet records = client.invoke(String.class, "SampleProcedure", parameter);
 
             // incrementally retrieve partial returns
             while (records.hasMore()) {
-                // do work on partial returns
+                // do work on each partial return
                 callback(records.nextElement());
             }
             // judge whether all returns arrive
             if (records.isPartial())
                 Log.info("Results are omitted.");
-            else
+            else // check the returns are correct or not
                 Log.info(expected == 0 ? "Check" : "*!WRONG!*", parameter, expected);
         } catch (Exception e) {
             e.printStackTrace();
