@@ -51,8 +51,7 @@ public class MrServer {
     public MrServer(String address, int port, WritableWrapper wrapper,
             ThreadPoolExecutor handlerExecutor,
             ThreadPoolExecutor responderExecutor) throws IOException {
-        this.bindAddress = new InetSocketAddress(address, port); // set up bind
-        // address
+        this.bindAddress = new InetSocketAddress(address, port);
         this.threadChannel = new InheritableThreadLocal<SocketChannel>();
         this.threadCallID = new InheritableThreadLocal<Long>();
 
@@ -103,7 +102,7 @@ public class MrServer {
         long callID = threadCallID.get();
         // Second-level primitive according to the two-level ordering protocol
         orders.get(callID).second.incrementAndGet(); // locate between first-level primitives
-        if (Log.debug) Log.debug("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
+        if (Log.debug) Log.action("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
         
         Responder responder = new Responder(channel, callID, false,
                 value);
@@ -124,7 +123,12 @@ public class MrServer {
         
         // Final break according to the two-level ordering protocol
         while (order.second.get() >= 0);
-        if (Log.debug) Log.debug("Order removed for", callID);
+        try {
+            channel.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (Log.debug) Log.action("Order removed for", callID);
         orders.remove(callID);
     }
     
@@ -164,7 +168,7 @@ public class MrServer {
         public void start() {
             // according to two-level ordering protocol
             orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
-            if (Log.debug) Log.debug("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+            if (Log.debug) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
             super.start();
         }
 
@@ -183,7 +187,7 @@ public class MrServer {
             runnable.run();
             // according to two-level ordering protocol
             orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
-            if (Log.debug) Log.debug("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+            if (Log.debug) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
         }
         
         private Runnable runnable;
@@ -208,10 +212,12 @@ public class MrServer {
         public void run() {
             while (isRunning) {
                 try {
+                    if (Log.debug) Log.state(1, "Listener is running ...", 1);
                     if (selector.select() > 0) { // if there exist new events
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
+                            if (Log.debug) Log.state(1, "Select keys ...");
                             if (key.isAcceptable()) {
                                 // retrieve the associated acceptance channel
                                 ServerSocketChannel acceptChannel = 
@@ -245,7 +251,7 @@ public class MrServer {
         private void readAndProcess(ChannelBuffer channelBuffer) throws IOException {
             if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
                 if (channelBuffer.tryReadData()) {
-                    if (Log.debug) Log.debug(
+                    if (Log.debug) Log.action(
                             "Read data of .length", channelBuffer.getLength());
                     // Create and trigger handler
                     Handler handler = new Handler(
@@ -269,6 +275,7 @@ public class MrServer {
         @Override
         public void run() {
             try {
+                if (Log.debug) Log.state(1, "Handler is running ...", 1);
                 DataInputStream dataIn = new DataInputStream(
                         new ByteArrayInputStream(data));
                 
@@ -286,7 +293,7 @@ public class MrServer {
                 orders.put(callID, new Order());
                 // First-level primitive according to two-level ordering protocol
                 orders.get(callID).first.incrementAndGet(); // before ending freturn()
-                if (Log.debug) Log.debug("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+                if (Log.debug) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
                 
                 // Invoke corresponding procedure
                 StringWritable procedureName = new StringWritable();
@@ -304,7 +311,7 @@ public class MrServer {
                 
                 // First-level primitive according to two-level ordering protocal
                 orders.get(callID).first.decrementAndGet(); // shrink after thread creation
-                if (Log.debug) Log.debug("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+                if (Log.debug) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (Exception e) {
@@ -330,6 +337,7 @@ public class MrServer {
         @Override
         public void run() {
             try {
+                if (Log.debug) Log.state(1, "Responder is running ...", 1);
                 // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
                 // cast inner long call ID to original integer type
@@ -350,7 +358,7 @@ public class MrServer {
                 
                 // Second-level primitive according to two-level ordering protocol
                 orders.get(callID).second.decrementAndGet(); // shrink after data transmission
-                if (Log.debug) Log.debug("Reply to .callID .length", callID, dataLength);
+                if (Log.debug) Log.action("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();
             }

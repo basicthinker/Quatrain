@@ -28,7 +28,7 @@ public class SampleClient {
      */
     public static void main(String[] args) {
         try {
-            // Log.setDebug(true);
+            Log.setDebug(Log.ACTION + Log.STATE);
             MrClient client = new MrClient(InetAddress.getByName(args[0]),
                     Integer.valueOf(args[1]), new HadoopWrapper(), 
                     Long.valueOf(args[2]));

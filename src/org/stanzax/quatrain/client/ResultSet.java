@@ -37,7 +37,7 @@ public class ResultSet {
     public void register(long callID) {
         this.callID = callID;
         waiting.put(callID, this);
-        if (Log.debug) Log.debug("New result set registered, .current # waiting", waiting.size());
+        if (Log.debug) Log.action("New result set registered, .current # waiting", waiting.size());
     }
     
     public boolean hasError() {

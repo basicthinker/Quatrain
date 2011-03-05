@@ -35,7 +35,7 @@ public class SampleServer extends MrServer {
      */
     public static void main(String[] args) {
         try {
-            // Log.setDebug(true);
+            Log.setDebug(Log.ACTION + Log.STATE);
             SampleServer server = new SampleServer("localhost", 3122, 3, 5);
             server.start();
         } catch (IOException e) {

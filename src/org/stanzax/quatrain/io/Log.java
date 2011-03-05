@@ -14,16 +14,34 @@ public class Log {
     
     public static boolean debug = false;
     
-    public static void setDebug(boolean isDebug) {
-        debug = isDebug;
+    public static void setDebug(int option) {
+        if (option == NONE) {
+            debug = false;
+            return;
+        } else debug = true;
+        if (option >= STATE) {
+            state = true;
+            option -= STATE;
+        } else state = false;
+        if (option >= ACTION) {
+            action = true;
+            option -= ACTION;
+        } else action = false;
     }
     
-    public static void debug(String info, Object...values) {
-        log(" - DEBUG @", info, values);
+    public static void state(int frequency, String info, Object... values) {
+        if (!debug || !state) return;
+        if ((int)(Math.random() * frequency) == 0)
+            log(" -- -- -> STATE @", info, values);
+    }
+    
+    public static void action(String info, Object...values) {
+        if (!debug || !action) return;
+        log(" -- -> DEBUG @", info, values);
     }
 
     public static void info(String info, Object...values) {
-        log("INFO @", info, values);
+        log(" -> INFO @", info, values);
     }
     
     private static void log(String header, String info, Object[] values) {
@@ -41,4 +59,10 @@ public class Log {
         return formatter.format(new Date());
     }
     
+    public static final int NONE = 0;
+    public static final int ACTION = 1;
+    public static final int STATE = 2;
+    
+    private static boolean action = false;
+    private static boolean state = false;
 }

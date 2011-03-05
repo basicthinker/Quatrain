@@ -55,10 +55,19 @@ public class MrClient {
     }
     
     public ResultSet invoke(Type returnType, String procedureName) {
-        return invoke(returnType, procedureName, new Object[0]);
+        return invoke(timeout, returnType, procedureName, new Object[0]);
+    }
+    
+    public ResultSet invoke(int timeout, Type returnType, String procedureName) {
+        return invoke(timeout, returnType, procedureName, new Object[0]);
     }
     
     public ResultSet invoke(Type returnType, String procedureName,
+            Object...parameters) {
+        return invoke(timeout, returnType, procedureName, parameters);
+    }
+    
+    public ResultSet invoke(long timeout, Type returnType, String procedureName,
             Object...parameters) {
         int callID = counter.addAndGet(1);
         // Early create and register result set for awaiting reply
@@ -86,7 +95,7 @@ public class MrClient {
                 channel.write(ByteBuffer.wrap(dataOut.getData(),
                         0, dataLength));
             }
-            if (Log.debug) Log.debug("Send request with .callID .length", 
+            if (Log.debug) Log.action("Send request with .callID .length", 
                     callID, dataLength);
             // Register for reply
             channel.configureBlocking(false);
@@ -124,6 +133,7 @@ public class MrClient {
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
+                            if (Log.debug) Log.state(1, "Select keys ...");
                             if (key.isReadable()) {
                                 ChannelBuffer channel = 
                                     (ChannelBuffer) key.attachment();
@@ -146,7 +156,7 @@ public class MrClient {
         private void doRead(ChannelBuffer channelBuffer) throws IOException {
             if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
                 if (channelBuffer.tryReadData()) {
-                    if (Log.debug) Log.debug("Receive reply with .length",
+                    if (Log.debug) Log.action("Receive reply with .length",
                             channelBuffer.getLength());
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
@@ -157,7 +167,7 @@ public class MrClient {
                     ResultSet results = ResultSet.get(callID.get());
                     if (results != null) {
                         results.putData(dataIn);
-                        if (Log.debug) Log.debug("Result set read in data.");
+                        if (Log.debug) Log.action("Result set read in data.");
                     }
                 } 
             } 
