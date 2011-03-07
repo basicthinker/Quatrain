@@ -123,11 +123,11 @@ public class MrServer {
         
         // Final break according to the two-level ordering protocol
         while (order.second.get() >= 0);
-        try {
+        /* try {
             channel.close();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        } */
         if (Log.debug) Log.action("Order removed for", callID);
         orders.remove(callID);
     }

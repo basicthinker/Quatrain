@@ -66,7 +66,7 @@ public class SocketChannelPool {
         public SocketChannel getSocketChannel() {
             return channel;
         }
-
+        
         public void setInactive() {
             lastActiveTime = System.currentTimeMillis();
         }
