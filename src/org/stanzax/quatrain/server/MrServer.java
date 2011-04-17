@@ -21,10 +21,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.stanzax.quatrain.hadoop.BooleanWritable;
-import org.stanzax.quatrain.hadoop.HadoopWrapper;
-import org.stanzax.quatrain.hadoop.IntWritable;
-import org.stanzax.quatrain.hadoop.StringWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.EOR;
@@ -38,9 +34,9 @@ import org.stanzax.quatrain.io.WritableWrapper;
  */
 public class MrServer {
 
-    public MrServer(String address, int port, int handlerCount,
+    public MrServer(String address, int port, WritableWrapper wrapper, int handlerCount,
             int responderCount) throws IOException {
-        this(address, port, new HadoopWrapper(), new ThreadPoolExecutor(
+        this(address, port, wrapper, new ThreadPoolExecutor(
                 handlerCount, 2 * handlerCount, 6, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>()), new ThreadPoolExecutor(
                 responderCount, 2 * responderCount, 6, TimeUnit.SECONDS,
@@ -123,11 +119,11 @@ public class MrServer {
         
         // Final break according to the two-level ordering protocol
         while (order.second.get() >= 0);
-        /* try {
+        try {
             channel.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } */
+        }
         if (Log.debug) Log.action("Order removed for", callID);
         orders.remove(callID);
     }
@@ -241,7 +237,7 @@ public class MrServer {
                         }
                         selectedKeys.clear();
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -280,11 +276,10 @@ public class MrServer {
                         new ByteArrayInputStream(data));
                 
                 // Read in integer call ID
-                IntWritable rawCallID = new IntWritable();
-                rawCallID.readFields(dataIn);
+                int rawCallID = dataIn.readInt();
                 // Transfer original call ID to inner long type
                 long callID = random.nextInt();
-                callID = (callID << 32) + rawCallID.get();
+                callID = (callID << 32) + rawCallID;
                 // Set thread locals before creating method threads
                 threadCallID.set(callID);
                 threadChannel.set(channel);
@@ -296,8 +291,9 @@ public class MrServer {
                 if (Log.debug) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
                 
                 // Invoke corresponding procedure
-                StringWritable procedureName = new StringWritable();
+                Writable procedureName = writable.newInstance(String.class);
                 procedureName.readFields(dataIn);
+                
                 Method procedure = procedures.get(procedureName.getValue());
                 Class<?>[] parameterTypes = procedure.getParameterTypes();
                 int parameterCount = parameterTypes.length;
@@ -341,8 +337,8 @@ public class MrServer {
                 // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
                 // cast inner long call ID to original integer type
-                new IntWritable((int)callID).write(dataOut);
-                new BooleanWritable(error).write(dataOut);
+                dataOut.writeInt((int)callID);
+                dataOut.writeBoolean(error);
                 writable.valueOf(value).write(dataOut);
                 dataOut.flush();
                 // Add data length

@@ -17,7 +17,6 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.stanzax.quatrain.hadoop.IntWritable;
 import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
@@ -76,12 +75,9 @@ public class MrClient {
         try {
             SocketChannel channel = channelPool.getSocketChannel(address);
             DataOutputBuffer dataOut = new DataOutputBuffer();
-            // Write call ID
-            IntWritable writableCallID = new IntWritable(callID);
-            writableCallID.write(dataOut);
-            
-            writable.valueOf(procedureName).write(dataOut);
-            for (Object parameter : parameters) {
+            dataOut.writeInt(callID); //write call ID
+            writable.valueOf(procedureName).write(dataOut); //write the procedure name
+            for (Object parameter : parameters) { //write procedure parameters
                 writable.valueOf(parameter).write(dataOut);
             }
             dataOut.flush();
@@ -161,10 +157,9 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
-                    IntWritable callID = new IntWritable();
-                    callID.readFields(dataIn);
+                    int callID = dataIn.readInt();
                     // Pass on data to corresponding result set
-                    ResultSet results = ResultSet.get(callID.get());
+                    ResultSet results = ResultSet.get(callID);
                     if (results != null) {
                         results.putData(dataIn);
                         if (Log.debug) Log.action("Result set read in data.");
