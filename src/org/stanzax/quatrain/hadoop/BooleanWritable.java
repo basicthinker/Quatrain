@@ -18,6 +18,10 @@
 
 package org.stanzax.quatrain.hadoop;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import org.stanzax.quatrain.io.Writable;
 
 /**
@@ -36,11 +40,22 @@ public class BooleanWritable extends org.apache.hadoop.io.BooleanWritable
 
     @Override
     public Object getValue() {
-        return get();
+        return super.get();
     }
 
     @Override
     public void setValue(Object value) {
-        set((Boolean)value);
+        super.set((Boolean)value);
+    }
+
+    @Override
+    public void readFields(DataInputStream in) throws IOException {
+        super.readFields(in);
+        
+    }
+
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+        super.write(out);
     }
 }

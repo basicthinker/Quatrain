@@ -3,8 +3,8 @@
  */
 package org.stanzax.quatrain.hadoop;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -43,7 +43,7 @@ public class ArrayWritable implements Writable {
      * @see org.stanzax.quatrain.io.Writable#readFields(java.io.DataInput)
      */
     @Override
-    public void readFields(DataInput in) throws IOException {
+    public void readFields(DataInputStream in) throws IOException {
         Type elementType = list.getClass().getComponentType();
         Writable elementWritable = wrapper.valueOf(elementType);
         while (true) {
@@ -59,7 +59,7 @@ public class ArrayWritable implements Writable {
      * @see org.stanzax.quatrain.io.Writable#write(java.io.DataOutput)
      */
     @Override
-    public void write(DataOutput out) throws IOException {
+    public void write(DataOutputStream out) throws IOException {
         Type elementType = list.getClass().getComponentType();
         Writable elementWritable = wrapper.newInstance(elementType);
         for (Object element : list) {

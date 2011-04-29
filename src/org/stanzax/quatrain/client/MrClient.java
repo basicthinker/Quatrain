@@ -21,6 +21,7 @@ import org.stanzax.quatrain.io.ChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
+import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
@@ -75,7 +76,7 @@ public class MrClient {
         try {
             SocketChannel channel = channelPool.getSocketChannel(address);
             DataOutputBuffer dataOut = new DataOutputBuffer();
-            dataOut.writeInt(callID); //write call ID
+            writable.valueOf(callID).write(dataOut); //write call ID
             writable.valueOf(procedureName).write(dataOut); //write the procedure name
             for (Object parameter : parameters) { //write procedure parameters
                 writable.valueOf(parameter).write(dataOut);
@@ -116,7 +117,7 @@ public class MrClient {
     /** Static call ID counter */
     private static AtomicInteger counter = new AtomicInteger();
     /** Static socket channel pool */
-    private static SocketChannelPool channelPool = new SocketChannelPool();
+    private static SocketChannelPool channelPool = new SocketChannelPool(true);
     
     private class Listener implements Runnable {
 
@@ -161,8 +162,15 @@ public class MrClient {
                     // Pass on data to corresponding result set
                     ResultSet results = ResultSet.get(callID);
                     if (results != null) {
-                        results.putData(dataIn);
-                        if (Log.debug) Log.action("Result set read in data.");
+                        Writable error = writable.newInstance(Boolean.TYPE);
+                        error.readFields(dataIn);
+                        if ((Boolean)error.getValue()) {
+                            Writable errorMessage = writable.newInstance(String.class);
+                            errorMessage.readFields(dataIn);
+                            results.putError(errorMessage.getValue().toString());
+                        } else {
+                            results.putData(dataIn);
+                        }
                     }
                 } 
             } 

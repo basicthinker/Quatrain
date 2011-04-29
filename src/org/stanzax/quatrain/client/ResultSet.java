@@ -11,8 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.stanzax.quatrain.hadoop.BooleanWritable;
-import org.stanzax.quatrain.hadoop.StringWritable;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
@@ -37,7 +35,7 @@ public class ResultSet {
     public void register(long callID) {
         this.callID = callID;
         waiting.put(callID, this);
-        if (Log.debug) Log.action("New result set registered, .current # waiting", waiting.size());
+        if (Log.debug) Log.action("New result set is registered, .current total #", waiting.size());
     }
     
     public boolean hasError() {
@@ -91,24 +89,19 @@ public class ResultSet {
         return errorInfo.toString();
     }
     
-    /** Input should begin with error flag */
+    /** Input should only contain data entries */
     public void putData(DataInputStream dataIn) {
         if (!isTimedOut) {
             try {
-                BooleanWritable errorFlag = new BooleanWritable();
-                errorFlag.readFields(dataIn);
-                if (errorFlag.get()) {
-                    StringWritable errorMessage = new StringWritable();
-                    errorMessage.readFields(dataIn);
-                    errors.add(errorMessage.toString());
-                } else if (dataIn.available() == 0) { 
+                if (dataIn.available() == 0) { 
                     // end of frame denoting final return
                     replyQueue.add(new EOR());
-                } else {
-                    while (dataIn.available() > 0) {
-                        returnType.readFields(dataIn);
-                        replyQueue.add(returnType.getValue());
-                    }
+                    if (Log.debug) Log.action("Result set for call # encounters reply end.", callID);
+                } else while (dataIn.available() > 0) {
+                    returnType.readFields(dataIn);
+                    replyQueue.add(returnType.getValue());
+                    if (Log.debug) Log.action("Result set for call # read in data.", 
+                            callID, returnType.getValue().toString());
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -116,6 +109,12 @@ public class ResultSet {
         } else return;
     }
 
+    public void putError(String errorMessage) {
+        if (!isTimedOut) {
+            errors.add(errorMessage);
+        } else return;
+    }
+    
     public void close() {
         if (callID == 0) return;
         waiting.remove(callID);

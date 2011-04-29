@@ -218,8 +218,7 @@ public class MrServer {
                                 // retrieve the associated acceptance channel
                                 ServerSocketChannel acceptChannel = 
                                     (ServerSocketChannel) key.channel();
-                                // create connection and register reading
-                                // channel
+                                // establish connection and reading channel
                                 SocketChannel readChannel = 
                                     acceptChannel.accept();
                                 if (readChannel != null) {
@@ -276,10 +275,11 @@ public class MrServer {
                         new ByteArrayInputStream(data));
                 
                 // Read in integer call ID
-                int rawCallID = dataIn.readInt();
+                Writable rawCallID = writable.newInstance(Integer.TYPE);
+                rawCallID.readFields(dataIn);
                 // Transfer original call ID to inner long type
                 long callID = random.nextInt();
-                callID = (callID << 32) + rawCallID;
+                callID = (callID << 32) + (Integer)rawCallID.getValue();
                 // Set thread locals before creating method threads
                 threadCallID.set(callID);
                 threadChannel.set(channel);
@@ -336,12 +336,11 @@ public class MrServer {
                 if (Log.debug) Log.state(1, "Responder is running ...", 1);
                 // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
-                // cast inner long call ID to original integer type
-                dataOut.writeInt((int)callID);
-                dataOut.writeBoolean(error);
+                writable.valueOf((int)callID).write(dataOut); //cast long call ID to original integer type
+                writable.valueOf(error).write(dataOut);
                 writable.valueOf(value).write(dataOut);
                 dataOut.flush();
-                // Add data length
+                // Calculate data length
                 int dataLength = dataOut.getDataLength();
                 ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
                 lengthBuffer.flip();
@@ -350,8 +349,7 @@ public class MrServer {
                     channel.write(lengthBuffer);
                     channel.write(ByteBuffer.wrap(dataOut.getData(),
                             0, dataLength));
-                }
-                
+                }                
                 // Second-level primitive according to two-level ordering protocol
                 orders.get(callID).second.decrementAndGet(); // shrink after data transmission
                 if (Log.debug) Log.action("Reply to .callID .length", callID, dataLength);

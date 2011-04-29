@@ -18,6 +18,10 @@
 
 package org.stanzax.quatrain.hadoop;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import org.stanzax.quatrain.io.Writable;
 
 /** A WritableComparable for longs. */
@@ -34,12 +38,22 @@ public class LongWritable extends org.apache.hadoop.io.LongWritable implements
 
     @Override
     public Object getValue() {
-        return get();
+        return super.get();
     }
 
     @Override
     public void setValue(Object value) {
-        set((Long)value);
+        super.set((Long)value);
+    }
+
+    @Override
+    public void readFields(DataInputStream in) throws IOException {
+        super.readFields(in);
+    }
+
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+        super.write(out);
     }
 
 }

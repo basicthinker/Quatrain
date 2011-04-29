@@ -4,7 +4,10 @@
 package org.stanzax.quatrain.sample;
 
 import java.io.IOException;
+
+import org.stanzax.quatrain.hprose.HproseWrapper;
 import org.stanzax.quatrain.io.Log;
+import org.stanzax.quatrain.io.WritableWrapper;
 import org.stanzax.quatrain.server.MrServer;
 
 /**
@@ -13,9 +16,9 @@ import org.stanzax.quatrain.server.MrServer;
  */
 public class SampleServer extends MrServer {
 
-    public SampleServer(String address, int port, int handlerCount,
+    public SampleServer(String address, int port, WritableWrapper wrapper, int handlerCount, 
             int responderCount) throws IOException {
-        super(address, port, handlerCount, responderCount);
+        super(address, port, wrapper, handlerCount, responderCount);
     }
 
 
@@ -37,7 +40,7 @@ public class SampleServer extends MrServer {
         try {
             // Set log options, combination of NONE, ACTION and STATE
             Log.setDebug(Log.ACTION + Log.STATE);
-            SampleServer server = new SampleServer("localhost", 3122, 3, 5);
+            SampleServer server = new SampleServer("localhost", 3122, new HproseWrapper(), 3, 5);
             server.start();
         } catch (IOException e) {
             e.printStackTrace();

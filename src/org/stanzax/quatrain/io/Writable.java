@@ -18,8 +18,8 @@
 
 package org.stanzax.quatrain.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
@@ -34,7 +34,7 @@ public interface Writable {
      *            <code>DataOuput</code> to serialize this object into.
      * @throws IOException
      */
-    void write(DataOutput out) throws IOException;
+    void write(DataOutputStream out) throws IOException;
 
     /**
      * Deserialize the fields of this object from <code>in</code>.
@@ -48,7 +48,7 @@ public interface Writable {
      *            <code>DataInput</code> to deseriablize this object from.
      * @throws IOException
      */
-    void readFields(DataInput in) throws IOException;
+    void readFields(DataInputStream in) throws IOException;
     
     void setValue(Object value);
     Object getValue();

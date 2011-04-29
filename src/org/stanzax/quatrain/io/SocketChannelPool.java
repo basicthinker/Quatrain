@@ -15,30 +15,30 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SocketChannelPool {
 
-    public SocketChannelPool() {
-        pool = new ConcurrentHashMap<SocketAddress, ManagedSocketChannel>();
+    public SocketChannelPool(boolean forceNew) {
+        this.pool = new ConcurrentHashMap<SocketAddress, ManagedSocketChannel>();
+        this.forceNew = forceNew;
     }
 
     public SocketChannel getSocketChannel(SocketAddress remoteAddress)
             throws IOException {
-        ManagedSocketChannel managedChannel = pool.get(remoteAddress);
-        if (managedChannel != null)
-            return managedChannel.getSocketChannel();
-        else {
-            SocketChannel channel = SocketChannel.open(remoteAddress);
-            pool.put(remoteAddress, new ManagedSocketChannel(channel));
-            return channel;
-        }
+        if (!forceNew) {
+            ManagedSocketChannel managedChannel = pool.get(remoteAddress);
+            if (managedChannel == null) {
+                SocketChannel channel = SocketChannel.open(remoteAddress);
+                pool.put(remoteAddress, new ManagedSocketChannel(channel));
+                return channel;           
+            } else return managedChannel.getSocketChannel();
+        } else return SocketChannel.open(remoteAddress);
     }
 
     public void putSocketChannel(SocketChannel channel) {
         SocketAddress address = channel.socket().getRemoteSocketAddress();
-        if (!channel.isOpen() || !channel.isConnected())
+        if (forceNew || !channel.isOpen() || !channel.isConnected())
             pool.remove(address);
         else if (pool.contains(address)) {
-            pool.get(channel.socket().getRemoteSocketAddress()).setInactive();
-        } else
-            return;
+            pool.get(address).setInactive();
+        } 
     }
 
     public int size() {
@@ -51,7 +51,8 @@ public class SocketChannelPool {
         }
         pool.clear();
     }
-    
+
+    private boolean forceNew;
     /** Thread-safe hash table to restore established socket channels */
     private ConcurrentHashMap<SocketAddress, ManagedSocketChannel> pool;
 

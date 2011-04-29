@@ -5,6 +5,9 @@ package org.stanzax.quatrain.evaluation;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadPoolExecutor;
+
+import org.stanzax.quatrain.hprose.HproseWrapper;
+import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.WritableWrapper;
 import org.stanzax.quatrain.server.MrServer;
 
@@ -12,7 +15,7 @@ import org.stanzax.quatrain.server.MrServer;
  * @author basicthinker
  *
  */
-public class EvaServer extends MrServer {
+public class HproseServer extends MrServer {
 
     public static int step = 5;
     
@@ -23,9 +26,9 @@ public class EvaServer extends MrServer {
      * @param responderCount
      * @throws IOException
      */
-    public EvaServer(String address, int port, int handlerCount,
+    public HproseServer(String address, int port, int handlerCount,
             int responderCount) throws IOException {
-        super(address, port, handlerCount, responderCount);
+        super(address, port, new HproseWrapper(), handlerCount, responderCount);
     }
 
     /**
@@ -36,7 +39,7 @@ public class EvaServer extends MrServer {
      * @param responderExecutor
      * @throws IOException
      */
-    public EvaServer(String address, int port, WritableWrapper wrapper,
+    public HproseServer(String address, int port, WritableWrapper wrapper,
             ThreadPoolExecutor handlerExecutor,
             ThreadPoolExecutor responderExecutor) throws IOException {
         super(address, port, wrapper, handlerExecutor, responderExecutor);
@@ -48,12 +51,7 @@ public class EvaServer extends MrServer {
         for (int i = 0; i < numParts; ++i) {
             end = begin = System.currentTimeMillis();
             while (end - begin < eachTime) {
-                try {
-                    Thread.sleep(eachTime < step ? eachTime : step);
-                    end = System.currentTimeMillis();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                end = System.currentTimeMillis();
             }
             preturn("3.1415926");
         }
@@ -67,12 +65,7 @@ public class EvaServer extends MrServer {
                     long begin, end;
                     end = begin = System.currentTimeMillis();
                     while (end - begin < eachTime) {
-                        try {
-                            Thread.sleep(eachTime < step ? eachTime : step);
-                            end = System.currentTimeMillis();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                        end = System.currentTimeMillis();
                     }
                     preturn("3.1415926");
                 }
@@ -82,15 +75,17 @@ public class EvaServer extends MrServer {
     
     /**
      * @param args
-     *          args[0] Remote server address
-     *          args[1] Total work time to simulate
+     *          args[0] Server address
+     *          args[1] Port number
      *          args[2] Number of handlers
      *          args[3] Number of responders
+     *          args[4] Debug log option
      */
     public static void main(String[] args) {
+        Log.setDebug(Integer.valueOf(args[4]));
         try {
-            EvaServer server = new EvaServer(args[0], 3122, 
-                    Integer.valueOf(args[1]), Integer.valueOf(args[2]));
+            HproseServer server = new HproseServer(args[0], Integer.valueOf(args[1]), 
+                    Integer.valueOf(args[2]), Integer.valueOf(args[3]));
             server.start();
         } catch (IOException e) {
             e.printStackTrace();

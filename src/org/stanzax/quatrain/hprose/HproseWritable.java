@@ -1,34 +1,48 @@
 /**
  * 
  */
-package org.stanzax.quatrain.io;
+package org.stanzax.quatrain.hprose;
+
+import hprose.io.HproseReader;
+import hprose.io.HproseWriter;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
-
+import org.stanzax.quatrain.io.Writable;
 
 /**
  * @author basicthinker
  *
  */
-public class EOR implements Writable, Serializable {
-
+public class HproseWritable implements Writable {
+    
+    public HproseWritable(Object value) {
+        this.value = value;
+    }
+    
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.Writable#getValue()
      */
     @Override
     public Object getValue() {
-        return null;
+        return value;
     }
 
+    /* (non-Javadoc)
+     * @see org.stanzax.quatrain.io.Writable#setValue(java.lang.Object)
+     */
+    @Override
+    public void setValue(Object value) {
+        this.value = value;
+    }
+    
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.Writable#readFields(java.io.DataInput)
      */
     @Override
     public void readFields(DataInputStream in) throws IOException {
-        return;
+        value = new HproseReader(in).unserialize();
     }
 
     /* (non-Javadoc)
@@ -36,13 +50,9 @@ public class EOR implements Writable, Serializable {
      */
     @Override
     public void write(DataOutputStream out) throws IOException {
-        return;
+        new HproseWriter(out).serialize(value);
     }
+    
+    private Object value;
 
-    @Override
-    public void setValue(Object value) {
-        return;
-    }
-
-    private static final long serialVersionUID = 1L;
 }

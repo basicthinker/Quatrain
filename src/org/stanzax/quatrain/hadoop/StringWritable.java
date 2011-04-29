@@ -3,6 +3,10 @@
  */
 package org.stanzax.quatrain.hadoop;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import org.stanzax.quatrain.io.Writable;
 
 /**
@@ -21,12 +25,22 @@ public class StringWritable extends org.apache.hadoop.io.Text implements Writabl
 
     @Override
     public Object getValue() {
-        return toString();
+        return super.toString();
     }
 
     @Override
     public void setValue(Object value) {
-        set((String)value);
+        super.set((String)value);
+    }
+
+    @Override
+    public void readFields(DataInputStream in) throws IOException {
+        super.readFields(in);
+    }
+
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+        super.write(out);
     }
 
 }
