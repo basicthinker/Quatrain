@@ -89,24 +89,32 @@ public class ReplySet {
         return errorInfo.toString();
     }
     
-    /** Input should only contain data entries */
-    public void putData(DataInputStream dataIn) {
+    /** 
+     * Input should only contain data entries
+     * @return true if actual data are put, false if EOF or error is encountered
+    */
+    public boolean putData(DataInputStream dataIn) {
         if (!isTimedOut) {
             try {
                 if (dataIn.available() == 0) { 
                     // end of frame denoting final return
                     replyQueue.add(new EOR());
                     if (Log.debug) Log.action("[ReplySet] Call # reaches reply end.", callID);
-                } else while (dataIn.available() > 0) {
-                    returnType.readFields(dataIn);
-                    replyQueue.add(returnType.getValue());
-                    if (Log.debug) Log.action("[ReplySet] Call # read in data.", 
-                            callID, returnType.getValue());
+                    return false;
+                } else {
+                    while (dataIn.available() > 0) {
+                        returnType.readFields(dataIn);
+                        replyQueue.add(returnType.getValue());
+                        if (Log.debug) Log.action("[ReplySet] Call # read in data.", 
+                                callID, returnType.getValue());
+                    }
+                    return true;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        } else return;
+        }
+        return false;
     }
 
     public void putError(String errorMessage) {

@@ -47,15 +47,19 @@ public class EvaClient {
     public void testSRSE() throws IOException {
         printer.println("- Printer for SRSE @ " + currentTime());
         writer.write("- Writer for SRSE @ " + currentTime() + "\n");
+
+        // Warm up
+        ReplySet returns = client.invoke(String.class, "SequentialExecute",
+                taskTime, 1);
+        returns.close();
         
-        long timeCost = 0;
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
-            timeCost = System.currentTimeMillis();
+            long callTime, costTime = 0;
             for (int i = 0; i < evaCount; ++i) {
-                
-                ReplySet returns = client.invoke(String.class, "SequentialExecute",
-                        taskTime, retCnt);
                 writer.write(String.valueOf(System.currentTimeMillis()) + "\n");
+                callTime = System.currentTimeMillis(); //begin of each call
+                returns = client.invoke(String.class, "SequentialExecute",
+                        taskTime, retCnt);
                 
                 int count = 0;
                 String returnValue = (String) returns.nextElement();
@@ -63,6 +67,7 @@ public class EvaClient {
                     if (!returnValue.equals("3.1415926")) 
                         printer.println("WRONG STRING : " + returnValue);
                     ++count;
+                    costTime += System.currentTimeMillis() - callTime; // sum each reply latency
                     returnValue = (String) returns.nextElement();
                 }
                 if (count != retCnt) 
@@ -70,10 +75,9 @@ public class EvaClient {
                             + retCnt + " : " + count);
                 returns.close();
             }
-            timeCost = System.currentTimeMillis() - timeCost;
             printer.println("return count = " + retCnt + 
-                    "\taverage latency (ms) = " + (double)timeCost / evaCount);
-        }
+                    "\taverage latency (ms) = " + (double)costTime / evaCount / retCnt);
+        } // for each return count
         printer.println();
     }
     
@@ -81,22 +85,27 @@ public class EvaClient {
     public void testSRPE() throws IOException {
         printer.println("- Printer for SRPE @ " + currentTime());
         writer.write("- Writer for SRPE @ " + currentTime() + "\n");
+
+        // Warm up
+        ReplySet returns = client.invoke(String.class, "ConcurrentExecute",
+                taskTime, 1);
+        returns.close();
         
-        long timeCost = 0;
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
-            timeCost = System.currentTimeMillis();
+            long callTime, costTime = 0;
             for (int i = 0; i < evaCount; ++i) {
-                
-                ReplySet returns = client.invoke(String.class, "ConcurrentExecute",
-                        taskTime, retCnt);
                 writer.write(String.valueOf(System.currentTimeMillis()) + "\n");
-                
+                callTime = System.currentTimeMillis(); //begin of each call
+                returns = client.invoke(String.class, "ConcurrentExecute",
+                        taskTime, retCnt);
+
                 int count = 0;
                 String returnValue = (String) returns.nextElement();
                 while (returnValue != null) {
                     if (!returnValue.equals("3.1415926")) 
                         printer.println("WRONG STRING : " + returnValue);
                     ++count;
+                    costTime += System.currentTimeMillis() - callTime; // sum each reply latency
                     returnValue = (String) returns.nextElement();
                 }
                 if (count != retCnt) 
@@ -104,9 +113,8 @@ public class EvaClient {
                             + retCnt + " : " + count);
                 returns.close();
             }
-            timeCost = System.currentTimeMillis() - timeCost;
             printer.println("return count = " + retCnt + 
-                    "\taverage latency (ms) = " + (double)timeCost / evaCount);
+                    "\taverage latency (ms) = " + (double)costTime / evaCount / retCnt);
         }
     }
     

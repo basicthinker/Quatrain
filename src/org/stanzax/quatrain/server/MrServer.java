@@ -229,9 +229,7 @@ public class MrServer {
                                     readKey.attach(new ChannelBuffer(readChannel));
                                 }
                             } else if (key.isReadable()) {
-                                ChannelBuffer channel = 
-                                    (ChannelBuffer) key.attachment();
-                                readAndProcess(channel);
+                                readAndProcess(key);
                             }
                         }
                         selectedKeys.clear();
@@ -243,11 +241,14 @@ public class MrServer {
         }
 
         /** Read complete remote call requests */
-        private void readAndProcess(ChannelBuffer channelBuffer) throws IOException {
-            if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
-                if (channelBuffer.tryReadData()) {
+        private void readAndProcess(SelectionKey key) throws IOException {
+            ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
+            if (channelBuffer != null && 
+                    (channelBuffer.hasLength() || channelBuffer.tryReadLength())) {
+                if (channelBuffer.tryReadData()) { // after reading in the whole frame
                     if (Log.debug) Log.action(
                             "Read data of .length", channelBuffer.getLength());
+                    key.cancel();
                     // Create and trigger handler
                     Handler handler = new Handler(
                             channelBuffer.getData(), channelBuffer.getChannel());

@@ -131,11 +131,7 @@ public class MrClient {
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
                             if (Log.debug) Log.state(1, "Select keys ...");
-                            if (key.isReadable()) {
-                                ChannelBuffer channel = 
-                                    (ChannelBuffer) key.attachment();
-                                if (channel != null) doRead(channel);
-                            }
+                            if (key.isReadable()) doRead(key);
                         }
                         selectedKeys.clear();
                     }
@@ -150,8 +146,10 @@ public class MrClient {
         }
         
         /** Read complete remote call replies */
-        private void doRead(ChannelBuffer channelBuffer) throws IOException {
-            if (channelBuffer.hasLength() || channelBuffer.tryReadLength()) {
+        private void doRead(SelectionKey key) throws IOException {
+            ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
+            if (channelBuffer != null && 
+                    (channelBuffer.hasLength() || channelBuffer.tryReadLength())) {
                 if (channelBuffer.tryReadData()) {
                     if (Log.debug) Log.action("Receive reply with .length",
                             channelBuffer.getLength());
@@ -169,8 +167,9 @@ public class MrClient {
                             Writable errorMessage = writable.newInstance(String.class);
                             errorMessage.readFields(dataIn);
                             results.putError(errorMessage.getValue().toString());
-                        } else {
-                            results.putData(dataIn);
+                        } else if (!results.putData(dataIn)) {
+                            key.cancel();
+                            //channelPool.putSocketChannel(channelBuffer.getChannel());
                         }
                     }
                 } 

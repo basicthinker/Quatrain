@@ -33,11 +33,15 @@ public class SocketChannelPool {
     }
 
     public void putSocketChannel(SocketChannel channel) {
-        SocketAddress address = channel.socket().getRemoteSocketAddress();
-        if (forceNew || !channel.isOpen() || !channel.isConnected())
-            pool.remove(address);
-        else if (pool.contains(address)) {
-            pool.get(address).setInactive();
+        if (forceNew || !channel.isOpen() || !channel.isConnected()) {
+            try {
+                channel.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            ManagedSocketChannel pooledChannel = pool.get(channel.socket().getRemoteSocketAddress());
+            if (pooledChannel != null) pooledChannel.setInactive();
         } 
     }
 
