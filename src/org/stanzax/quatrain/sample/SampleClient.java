@@ -5,7 +5,7 @@ package org.stanzax.quatrain.sample;
 
 import java.net.InetAddress;
 import org.stanzax.quatrain.client.MrClient;
-import org.stanzax.quatrain.client.ResultSet;
+import org.stanzax.quatrain.client.ReplySet;
 import org.stanzax.quatrain.hadoop.HadoopWrapper;
 import org.stanzax.quatrain.io.Log;
 
@@ -40,7 +40,7 @@ public class SampleClient {
             // Invoke non-blocking multi-return RPC.
             // The sample procedure returns pi strings with number equal to parameter
             expected = parameter; // for checking whether all returns arrive
-            ResultSet records = client.invoke(String.class, "SampleProcedure", parameter);
+            ReplySet records = client.invoke(String.class, "SampleProcedure", parameter);
 
             // incrementally retrieve partial returns
             while (records.hasMore()) {

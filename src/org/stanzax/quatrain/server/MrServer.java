@@ -304,6 +304,13 @@ public class MrServer {
                     parameters[i] = writableParameter.getValue();
                 }
                 procedure.invoke(MrServer.this, parameters);
+                if (Log.debug) {
+                    StringBuffer strParameters = new StringBuffer();
+                    for (Object p : parameters) {
+                        strParameters.append("{").append(p).append("}");
+                    }
+                    Log.action("Invoked procedure", procedureName.getValue(), strParameters);
+                }
                 
                 // First-level primitive according to two-level ordering protocal
                 orders.get(callID).first.decrementAndGet(); // shrink after thread creation

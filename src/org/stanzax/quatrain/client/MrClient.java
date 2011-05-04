@@ -54,24 +54,24 @@ public class MrClient {
         this.address = address;
     }
     
-    public ResultSet invoke(Type returnType, String procedureName) {
+    public ReplySet invoke(Type returnType, String procedureName) {
         return invoke(timeout, returnType, procedureName, new Object[0]);
     }
     
-    public ResultSet invoke(int timeout, Type returnType, String procedureName) {
+    public ReplySet invoke(int timeout, Type returnType, String procedureName) {
         return invoke(timeout, returnType, procedureName, new Object[0]);
     }
     
-    public ResultSet invoke(Type returnType, String procedureName,
+    public ReplySet invoke(Type returnType, String procedureName,
             Object...parameters) {
         return invoke(timeout, returnType, procedureName, parameters);
     }
     
-    public ResultSet invoke(long timeout, Type returnType, String procedureName,
+    public ReplySet invoke(long timeout, Type returnType, String procedureName,
             Object...parameters) {
         int callID = counter.addAndGet(1);
         // Early create and register result set for awaiting reply
-        ResultSet results = new ResultSet(writable.newInstance(returnType), timeout);
+        ReplySet results = new ReplySet(writable.newInstance(returnType), timeout);
         results.register(callID);
         try {
             SocketChannel channel = channelPool.getSocketChannel(address);
@@ -158,9 +158,10 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
-                    int callID = dataIn.readInt();
+                    Writable callID = writable.newInstance(Integer.TYPE);
+                    callID.readFields(dataIn);
                     // Pass on data to corresponding result set
-                    ResultSet results = ResultSet.get(callID);
+                    ReplySet results = ReplySet.get((Integer)callID.getValue());
                     if (results != null) {
                         Writable error = writable.newInstance(Boolean.TYPE);
                         error.readFields(dataIn);

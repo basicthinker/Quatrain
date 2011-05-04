@@ -10,7 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import org.stanzax.quatrain.client.MrClient;
-import org.stanzax.quatrain.client.ResultSet;
+import org.stanzax.quatrain.client.ReplySet;
 
 /**
  * @author basicthinker
@@ -53,7 +53,7 @@ public class EvaClient {
             timeCost = System.currentTimeMillis();
             for (int i = 0; i < evaCount; ++i) {
                 
-                ResultSet returns = client.invoke(String.class, "SequentialExecute",
+                ReplySet returns = client.invoke(String.class, "SequentialExecute",
                         taskTime, retCnt);
                 writer.write(String.valueOf(System.currentTimeMillis()) + "\n");
                 
@@ -87,7 +87,7 @@ public class EvaClient {
             timeCost = System.currentTimeMillis();
             for (int i = 0; i < evaCount; ++i) {
                 
-                ResultSet returns = client.invoke(String.class, "ConcurrentExecute",
+                ReplySet returns = client.invoke(String.class, "ConcurrentExecute",
                         taskTime, retCnt);
                 writer.write(String.valueOf(System.currentTimeMillis()) + "\n");
                 

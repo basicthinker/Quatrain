@@ -12,7 +12,7 @@ import org.stanzax.quatrain.io.WritableWrapper;
  * @author basicthinker
  *
  */
-public class HproseWrapper extends WritableWrapper {
+public class HproseWrapper implements WritableWrapper {
 
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.WritableWrapper#newInstance(java.lang.reflect.Type)
@@ -83,7 +83,9 @@ public class HproseWrapper extends WritableWrapper {
      */
     @Override
     public Writable valueOf(Object value) {
-        return new HproseWritable(value);
+        if (value instanceof Writable){
+            return (Writable)value;
+        } else return new HproseWritable(value);
     }
 
     /* (non-Javadoc)

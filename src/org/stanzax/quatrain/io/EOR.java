@@ -6,14 +6,12 @@ package org.stanzax.quatrain.io;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
-
 
 /**
  * @author basicthinker
  *
  */
-public class EOR implements Writable, Serializable {
+public class EOR implements Writable {
 
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.Writable#getValue()

@@ -10,7 +10,7 @@ import org.stanzax.quatrain.io.Writable;
  * @author basicthinker
  * 
  */
-public class HadoopWrapper extends org.stanzax.quatrain.io.WritableWrapper {
+public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
 
     /*
      * (non-Javadoc)

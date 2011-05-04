@@ -9,7 +9,7 @@ import java.lang.reflect.Type;
  * @author basicthinker
  * 
  */
-public abstract class WritableWrapper {
+public interface WritableWrapper {
     
     public abstract Writable valueOf(int intValue);
 
@@ -24,10 +24,6 @@ public abstract class WritableWrapper {
     public abstract Writable valueOf(float floatValue);
 
     public abstract Writable valueOf(String stringValue);
-    
-    public Writable valueOf(EOR eor) {
-        return new EOR();
-    }
 
     public abstract Writable valueOf(Object objValue);
 

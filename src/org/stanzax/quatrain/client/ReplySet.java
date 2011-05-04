@@ -21,9 +21,9 @@ import org.stanzax.quatrain.io.Writable;
  * @param <ElementType>
  *            Type of returns
  */
-public class ResultSet {
+public class ReplySet {
     
-    public ResultSet(Writable type, long timeout) {
+    public ReplySet(Writable type, long timeout) {
         this.returnType = type;
         this.timeout = timeout;
     }
@@ -96,12 +96,12 @@ public class ResultSet {
                 if (dataIn.available() == 0) { 
                     // end of frame denoting final return
                     replyQueue.add(new EOR());
-                    if (Log.debug) Log.action("Result set for call # encounters reply end.", callID);
+                    if (Log.debug) Log.action("[ReplySet] Call # reaches reply end.", callID);
                 } else while (dataIn.available() > 0) {
                     returnType.readFields(dataIn);
                     replyQueue.add(returnType.getValue());
-                    if (Log.debug) Log.action("Result set for call # read in data.", 
-                            callID, returnType.getValue().toString());
+                    if (Log.debug) Log.action("[ReplySet] Call # read in data.", 
+                            callID, returnType.getValue());
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -125,11 +125,11 @@ public class ResultSet {
         close();
     }
     
-    public static ResultSet get(long callID) {
+    public static ReplySet get(long callID) {
         return waiting.get(callID);
     }
     
-    public static Map<Long, ResultSet> getAll() {
+    public static Map<Long, ReplySet> getAll() {
         return waiting;
     }
     
@@ -143,6 +143,6 @@ public class ResultSet {
     private volatile boolean isTimedOut = false;
     private long beginTime = System.currentTimeMillis();
     private Object buffer = null;
-    private static ConcurrentHashMap<Long, ResultSet> waiting = 
-        new ConcurrentHashMap<Long, ResultSet>();
+    private static ConcurrentHashMap<Long, ReplySet> waiting = 
+        new ConcurrentHashMap<Long, ReplySet>();
 }
