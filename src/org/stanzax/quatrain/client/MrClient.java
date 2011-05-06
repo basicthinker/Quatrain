@@ -169,7 +169,7 @@ public class MrClient {
                             results.putError(errorMessage.getValue().toString());
                         } else if (!results.putData(dataIn)) {
                             key.cancel();
-                            //channelPool.putSocketChannel(channelBuffer.getChannel());
+                            channelPool.putSocketChannel(channelBuffer.getChannel());
                         }
                     }
                 } 

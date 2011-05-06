@@ -81,7 +81,7 @@ public class EvaClient {
         printer.println();
     }
     
-    /* Sequential Request, Parallel Respond */
+    /* Sequential Request, Parallel Execution */
     public void testSRPE() throws IOException {
         printer.println("- Printer for SRPE @ " + currentTime());
         writer.write("- Writer for SRPE @ " + currentTime() + "\n");
@@ -117,6 +117,8 @@ public class EvaClient {
                     "\taverage latency (ms) = " + (double)costTime / evaCount / retCnt);
         }
     }
+    
+    
     
     static String currentTime() {
         SimpleDateFormat formatter = 
