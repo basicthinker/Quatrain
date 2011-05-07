@@ -38,7 +38,7 @@ public class EvaServer extends MrServer {
         }
     }
     
-    public void ConcurrentExecute(int workTime, int numThreads) {
+    public void ParallelExecute(int workTime, int numThreads) {
         for (int i = 0; i < numThreads; ++i) {
             final int eachTime = (int) (workTime / numThreads);
             new Thread(new Runnable() {

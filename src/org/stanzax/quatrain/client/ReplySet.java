@@ -38,6 +38,10 @@ public class ReplySet {
         if (Log.debug) Log.action("New result set is registered, .current total #", waiting.size());
     }
     
+    public boolean timedOut() {
+        return isTimedOut;
+    }
+    
     public boolean hasError() {
         return errors.size() > 0;
     }
