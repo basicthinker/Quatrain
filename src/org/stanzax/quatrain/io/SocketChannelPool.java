@@ -60,12 +60,14 @@ public class SocketChannelPool {
     /** Thread-safe hash table to restore established socket channels */
     private ConcurrentHashMap<SocketAddress, ManagedSocketChannel> pool;
 
-    /** Socket channel with time stamp and other management facilities */
+    /** 
+     * Socket channel with time stamp and other management facilities 
+     */
     private class ManagedSocketChannel {
 
         public ManagedSocketChannel(SocketChannel channel) {
             this.channel = channel;
-            this.lastActiveTime = System.currentTimeMillis();
+            // this.lastActiveTime = System.currentTimeMillis();
         }
 
         public SocketChannel getSocketChannel() {
@@ -73,13 +75,15 @@ public class SocketChannelPool {
         }
         
         public void setInactive() {
-            lastActiveTime = System.currentTimeMillis();
+            // lastActiveTime = System.currentTimeMillis();
         }
 
+        /*
         public long getLastActiveTime() {
             return lastActiveTime;
         }
-
+        */
+        
         /** Try to close both this channel and its underlying socket */
         public void close() {
             try {
@@ -92,6 +96,6 @@ public class SocketChannelPool {
         
         private SocketChannel channel;
         /** The time this socket channel was given back to pool */
-        private volatile long lastActiveTime;
+        // private volatile long lastActiveTime;
     }
 }
