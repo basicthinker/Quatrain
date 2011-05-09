@@ -34,7 +34,7 @@ public class HproseEva {
     public static void main(String[] args) {
         int taskTime = Integer.valueOf(args[2]);
         int retCnt = Integer.valueOf(args[3]);
-        int evaCnt = Integer.valueOf(args[4]);
+        int repeatCnt = Integer.valueOf(args[4]);
         int dispCnt = Integer.valueOf(args[5]);
         int rpsSE = Integer.valueOf(args[6]);
         int rpsPE = Integer.valueOf(args[7]);
@@ -56,20 +56,17 @@ public class HproseEva {
             EvaClient evaClient = new EvaClient(client, System.out, writer);
             evaClient.setTaskTime(taskTime);
             evaClient.setReturnCount(retCnt);
-            evaClient.setEvaCount(evaCnt);
             evaClient.setThreadCount(dispCnt);
             
-            evaClient.testSR("SequentialExecute");
-            evaClient.testSR("ParallelExecute");
+            evaClient.testSR("SequentialExecute", repeatCnt);
+            evaClient.testSR("ParallelExecute", repeatCnt);
             
-            for (int i = 0; i < 3; ++i) {
+            for (int i = 1; i <= 3; ++i) {
                 System.out.println("\n# " + i);
-                writer.write("\n# " + i + "\n");
                 evaClient.testPR("SequentialExecute", rpsSE, sec);
             }
-            for (int i = 0; i < 3; ++i) {
+            for (int i = 1; i <= 3; ++i) {
                 System.out.println("\n# " + i);
-                writer.write("\n# " + i + "\n");
                 evaClient.testPR("ParallelExecute", rpsPE, sec);
             }
             

@@ -27,7 +27,7 @@ public class EvaServer extends MrServer {
     }
 
     public void SequentialExecute(int workTime, int numParts) {
-        int eachTime = (int) (workTime / numParts);
+        long eachTime = (long) Math.ceil(workTime / numParts);
         long begin, end;
         for (int i = 0; i < numParts; ++i) {
             end = begin = System.currentTimeMillis();
@@ -40,7 +40,7 @@ public class EvaServer extends MrServer {
     
     public void ParallelExecute(int workTime, int numThreads) {
         for (int i = 0; i < numThreads; ++i) {
-            final int eachTime = (int) (workTime / numThreads);
+            final long eachTime = (long) Math.ceil(workTime / numThreads);
             new Thread(new Runnable() {
                 public void run() {
                     long begin, end;

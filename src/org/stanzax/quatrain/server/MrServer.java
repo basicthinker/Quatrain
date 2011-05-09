@@ -16,8 +16,8 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -38,9 +38,9 @@ public class MrServer {
             int responderCount) throws IOException {
         this(address, port, wrapper, new ThreadPoolExecutor(
                 handlerCount, 2 * handlerCount, 6, TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(handlerCount * 100)), new ThreadPoolExecutor(
+                new LinkedBlockingQueue<Runnable>()), new ThreadPoolExecutor(
                 responderCount, 2 * responderCount, 6, TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(responderCount * 100)));
+                new LinkedBlockingQueue<Runnable>()));
     }
     
     /** User can configure server by providing refined thread pool executors. */

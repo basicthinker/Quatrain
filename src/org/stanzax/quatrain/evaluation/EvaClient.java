@@ -31,10 +31,6 @@ public class EvaClient {
         returnCount = count;
     }
     
-    public void setEvaCount(int count) {
-        evaCount = count;
-    }
-    
     public void setThreadCount(int num) {
         dispatcherCount = num;
     }
@@ -48,9 +44,11 @@ public class EvaClient {
     }
     
     /* Sequential Requests */
-    public void testSR(String method) throws IOException {
+    public void testSR(String method, final int repeatCnt) throws IOException {
         printer.println("--------------------");
-        printer.print(method + " SR\n" + getConfig());
+        printer.println(method + " SR");
+        printer.println(" Repeat Count = " + repeatCnt);
+        printer.print(getReadableConfig());
         printer.println("--------------------");
         
         // Warm up
@@ -61,23 +59,25 @@ public class EvaClient {
         /* Evaluate each number of returns */
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
             double costTime = 0;
-            for (int i = 0; i < evaCount; ++i) {
+            for (int i = 0; i < repeatCnt; ++i) {
                 costTime += evaInvoke(method, retCnt);
             }
-            printer.println(retCnt + " returns' average latency (ms) = " + costTime / evaCount);
+            printer.println(retCnt + " returns' average latency (ms) = " + costTime / repeatCnt);
         }
         printer.println();
     }
     
     /* Parallel Requests */
-    public void testPR(String method, int rps, int sec) throws IOException {
+    public void testPR(String method, final int rps, final int sec) throws IOException {
         printer.println("--------------------");
-        printer.print(method + " PR\n" + getConfig());
+        printer.println(method + " PR");
+        printer.println(" Request/second = " + rps + "\tSeconds = " + sec);
+        printer.print(getReadableConfig());
         printer.println("--------------------");
         
-        writer.write("--------------------\n");
-        writer.write(method + " PR\n" + getConfig());
-        writer.write("--------------------\n");
+        writer.write("-1\t" + method);
+        writer.write("\t" + taskTime);
+        writer.write("\t" + returnCount +"\n");
         
         final int interval = 1000 / rps * dispatcherCount;
         if (interval < 3) { // prevent too short interval
@@ -140,12 +140,11 @@ public class EvaClient {
         } else return costTime / count;
     }
     
-    public String getConfig() {
+    public String getReadableConfig() {
         StringBuffer strBuf = new StringBuffer();
         strBuf.append("Client Configuration @").append(currentTime()).append("\n");
-        strBuf.append("Task time = ").append(taskTime).append("\n");
-        strBuf.append("Max return count = ").append(returnCount).append("\n");
-        strBuf.append("Evaluation count = ").append(evaCount).append("\n");
+        strBuf.append(" Task time = ").append(taskTime).append("\n");
+        strBuf.append(" Max return count = ").append(returnCount).append("\n");
         return strBuf.toString();
     }
     
@@ -158,7 +157,7 @@ public class EvaClient {
     private MrClient client;
     private int taskTime = 0;
     private int returnCount = 0;
-    private int evaCount = 0;
+
     private int dispatcherCount = 0;
     private PrintStream printer;
     private BufferedWriter writer;
