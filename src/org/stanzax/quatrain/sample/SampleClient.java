@@ -40,7 +40,7 @@ public class SampleClient {
             // Invoke non-blocking multi-return RPC.
             // The sample procedure returns pi strings with number equal to parameter
             expected = parameter; // for checking whether all returns arrive
-            ReplySet records = client.invoke(String.class, "SampleProcedure", parameter);
+            ReplySet records = client.invoke(Double.class, "SampleProcedure", parameter);
 
             // incrementally retrieve partial returns
             while (records.hasMore()) {

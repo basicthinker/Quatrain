@@ -20,22 +20,22 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
     @Override
     public Writable newInstance(Type classType) {
         // most primitive types
-        if (classType == Integer.TYPE)
+        if (classType == Integer.TYPE || classType == Integer.class)
             return new IntWritable();
-        else if (classType == Long.TYPE)
+        else if (classType == Long.TYPE || classType == Long.class)
             return new LongWritable();
-        else if (classType == Boolean.TYPE)
+        else if (classType == Boolean.TYPE || classType == Boolean.class)
             return new BooleanWritable();
-        else if (classType == Character.TYPE)
-            return new ByteWritable();
-        else if (classType == Double.TYPE)
+        else if (classType == Double.TYPE || classType == Double.class)
             return new DoubleWritable();
-        else if (classType == Float.TYPE)
-            return new FloatWritable();
         else if (classType == String.class)
             return new StringWritable();
+        else if (classType == Float.TYPE || classType == Float.class)
+            return new FloatWritable();
+        else if (classType == Character.TYPE || classType == Character.class)
+            return new ByteWritable();
         else
-            throw new IllegalArgumentException("Invalid class type");
+            throw new IllegalArgumentException("Invalid class type " + classType);
     }
 
     /*

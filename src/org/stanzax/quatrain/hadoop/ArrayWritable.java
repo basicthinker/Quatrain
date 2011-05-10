@@ -8,6 +8,8 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+
 import org.stanzax.quatrain.io.Writable;
 
 /**
@@ -46,13 +48,16 @@ public class ArrayWritable implements Writable {
     public void readFields(DataInputStream in) throws IOException {
         Type elementType = list.getClass().getComponentType();
         Writable elementWritable = wrapper.valueOf(elementType);
+        ArrayList<Object> array = new ArrayList<Object>();
         while (true) {
             try {
                 elementWritable.readFields(in);
+                array.add(elementWritable.getValue());
             } catch (EOFException e) {
                 break;
             }
         }
+        list = array.toArray();
     }
 
     /* (non-Javadoc)

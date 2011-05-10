@@ -52,7 +52,7 @@ public class EvaClient {
         printer.println("--------------------");
         
         // Warm up
-        ReplySet returns = client.invoke(String.class, method, taskTime, 3);
+        ReplySet returns = client.invoke(Double.class, method, taskTime, 3);
         while (returns.nextElement() != null);
         returns.close();
         
@@ -87,7 +87,7 @@ public class EvaClient {
         }
         
         // Warm up
-        ReplySet returns = client.invoke(String.class, method, taskTime, 3);
+        ReplySet returns = client.invoke(Double.class, method, taskTime, 3);
         while (returns.nextElement() != null);
         returns.close();
         
@@ -122,20 +122,20 @@ public class EvaClient {
         int count = 0;
         double costTime = 0;
         long callTime = System.currentTimeMillis(); // accurate begin time of call
-        ReplySet returns = client.invoke(String.class, method, taskTime, retCnt);
+        ReplySet returns = client.invoke(Double.class, method, taskTime, retCnt);
 
-        String returnValue = (String) returns.nextElement();
+        Double returnValue = (Double) returns.nextElement();
         while (returnValue != null) {
-            if (!returnValue.equals("3.1415926")) 
-                printer.println("WRONG STRING : " + returnValue);
+            if (returnValue != Math.PI) 
+                printer.println("WRONG REPLY : " + returnValue);
             ++count;
             costTime += System.currentTimeMillis() - callTime; // sum each reply latency
-            returnValue = (String) returns.nextElement();
+            returnValue = (Double) returns.nextElement();
         }
         returns.close();
-        if (count != retCnt) { 
-            printer.println("WRONG COUNT! # expected returns != # actual returns .timed-out : " 
-                    + retCnt + " : " + count + " : " + returns.timedOut());
+        if (count != taskTime) { // expected number of replies equals taskTime
+            printer.println("WRONG COUNT for # returns! # expected != # actual replies .timed-out : " 
+                    + retCnt + " : " + taskTime + " : " + count + " : " + returns.timedOut());
             return Double.MAX_VALUE;
         } else return costTime / count;
     }

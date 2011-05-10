@@ -26,29 +26,36 @@ public class EvaServer extends MrServer {
         super(address, port, wrapper, handlerExecutor, responderExecutor);
     }
 
-    public void SequentialExecute(int workTime, int numParts) {
-        long eachTime = (long) Math.ceil(workTime / numParts);
-        long begin, end;
-        for (int i = 0; i < numParts; ++i) {
-            end = begin = System.currentTimeMillis();
-            while (end - begin < eachTime) {
-                end = System.currentTimeMillis();
+    public void SequentialExecute(int total, int divider) {
+        for (int i = 0; i < divider; ++i) {
+            int each = total / divider + (i < total % divider ? 1 : 0);
+            Double[] replies = new Double[each];
+            for (int j = 0; j < each; ++j) 
+                replies[j] = Math.PI;
+            try {
+                Thread.sleep(each);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            preturn("3.1415926");
+            preturn(replies);        
         }
     }
     
-    public void ParallelExecute(int workTime, int numThreads) {
-        for (int i = 0; i < numThreads; ++i) {
-            final long eachTime = (long) Math.ceil(workTime / numThreads);
+    public void ParallelExecute(int total, int divider) {
+        for (int i = 0; i < divider; ++i) {
+            final int each = total / divider + (i < total % divider ? 1 : 0);
+            final Double[] replies = new Double[each];
+            for (int j = 0; j < each; ++j)
+                replies[j] = Math.PI;
+            
             new Thread(new Runnable() {
                 public void run() {
-                    long begin, end;
-                    end = begin = System.currentTimeMillis();
-                    while (end - begin < eachTime) {
-                        end = System.currentTimeMillis();
+                    try {
+                        Thread.sleep(each);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                    preturn("3.1415926");
+                    preturn(replies);
                 }
             }).start();
         }

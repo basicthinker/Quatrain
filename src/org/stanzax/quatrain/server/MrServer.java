@@ -278,7 +278,7 @@ public class MrServer {
                     new ByteArrayInputStream(data));
             
             // Read in integer call ID
-            Writable rawCallID = writable.newInstance(Integer.TYPE);
+            Writable rawCallID = writable.newInstance(Integer.class);
             try {
                 rawCallID.readFields(dataIn);
             } catch (IOException ex) {

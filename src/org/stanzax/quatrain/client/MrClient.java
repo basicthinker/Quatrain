@@ -156,12 +156,12 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(channelBuffer.getData()));
                     // Read in call ID
-                    Writable callID = writable.newInstance(Integer.TYPE);
+                    Writable callID = writable.newInstance(Integer.class);
                     callID.readFields(dataIn);
                     // Pass on data to corresponding result set
                     ReplySet results = ReplySet.get((Integer)callID.getValue());
                     if (results != null) {
-                        Writable error = writable.newInstance(Boolean.TYPE);
+                        Writable error = writable.newInstance(Boolean.class);
                         error.readFields(dataIn);
                         if ((Boolean)error.getValue()) {
                             Writable errorMessage = writable.newInstance(String.class);

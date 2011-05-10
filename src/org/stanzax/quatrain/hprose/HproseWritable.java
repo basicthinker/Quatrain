@@ -50,7 +50,11 @@ public class HproseWritable implements Writable {
      */
     @Override
     public void write(DataOutputStream out) throws IOException {
-        new HproseWriter(out).serialize(value);
+        HproseWriter writer = new HproseWriter(out);
+        if (value.getClass().isArray()) {
+            Object[] array = (Object[])value;
+            for (Object element : array) writer.serialize(element);
+        } else writer.serialize(value);
     }
     
     private Object value;
