@@ -11,13 +11,13 @@ import java.nio.channels.SocketChannel;
  * @author basicthinker
  *
  */
-public class ChannelBuffer {
+public class InputChannelBuffer {
 
     public static final int FILL_LEN = 1;
     public static final int FILL_DATA = 2;
     public static final int FINAL = 3;
 
-    public ChannelBuffer(SocketChannel channel) {
+    public InputChannelBuffer(SocketChannel channel) {
         this.channel = channel;
         state = FILL_LEN; // prepared for receiving input
     }
@@ -51,7 +51,7 @@ public class ChannelBuffer {
                     break;
                 default:
                     throw new IllegalArgumentException(
-                            "Invalid internal state in ChannelBuffer.");
+                            "Invalid internal state in InputChannelBuffer.");
                 }                
             } catch (IOException e) {
                 e.printStackTrace();

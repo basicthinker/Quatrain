@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.stanzax.quatrain.io.ChannelBuffer;
+import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
@@ -229,7 +229,7 @@ public class MrServer {
                                     readChannel.socket().setTcpNoDelay(true);
                                     SelectionKey readKey = readChannel.register(
                                             selector, SelectionKey.OP_READ);
-                                    readKey.attach(new ChannelBuffer(readChannel));
+                                    readKey.attach(new InputChannelBuffer(readChannel));
                                 }
                             } else if (key.isReadable()) {
                                 readAndProcess(key);
@@ -245,16 +245,16 @@ public class MrServer {
 
         /** Read complete remote call requests */
         private void readAndProcess(SelectionKey key) throws IOException {
-            ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
-            if (channelBuffer != null) {
-                byte[] data = channelBuffer.read();
+            InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
+            if (inBuf != null) {
+                byte[] data = inBuf.read();
                 if (data != null) { // after reading in the whole frame
                     if (Log.DEBUG) Log.action(
                             "Read data of .length", data.length);
                     key.cancel();
                     // Create and trigger handler
                     Handler handler = new Handler(
-                            data, channelBuffer.getChannel());
+                            data, inBuf.getChannel());
                     handlerExecutor.execute(handler); 
                 } 
             }
@@ -360,11 +360,13 @@ public class MrServer {
                 int dataLength = dataOut.getDataLength();
                 ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
                 lengthBuffer.flip();
-                
+                ByteBuffer dataBuffer = ByteBuffer.wrap(dataOut.getData(), 
+                        0, dataLength);
                 synchronized (channel) {
-                    channel.write(lengthBuffer);
-                    channel.write(ByteBuffer.wrap(dataOut.getData(),
-                            0, dataLength));
+                    while (lengthBuffer.hasRemaining())
+                        channel.write(lengthBuffer);
+                    while (dataBuffer.hasRemaining())
+                        channel.write(dataBuffer);
                 }                
                 if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {

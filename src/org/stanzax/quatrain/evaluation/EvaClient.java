@@ -81,7 +81,7 @@ public class EvaClient {
         
         final int interval = 1000 * dispatcherCount / rps ;
         if (interval < 3) { // prevent too short interval
-            writer.write("Illegal interval: " + interval);
+            printer.println("Illegal interval: " + interval);
             writer.flush();
             return;
         }
@@ -133,8 +133,8 @@ public class EvaClient {
             returnValue = (Double) returns.nextElement();
         }
         returns.close();
-        if (count != taskTime) { // expected number of replies equals taskTime
-            printer.println("WRONG COUNT for # returns! # expected != # actual replies .timed-out : " 
+        if (count != taskTime) { // expected number of replyQueue equals taskTime
+            printer.println("WRONG COUNT for # returns! # expected != # actual replyQueue .timed-out : " 
                     + retCnt + " : " + taskTime + " : " + count + " : " + returns.timedOut());
             return Double.MAX_VALUE;
         } else return costTime / count;

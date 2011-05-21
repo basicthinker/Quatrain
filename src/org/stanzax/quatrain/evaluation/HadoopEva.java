@@ -51,8 +51,9 @@ public class HadoopEva {
         }
         
         try {
+            String seperator = System.getProperty("file.separator");
             BufferedWriter writer = new BufferedWriter(
-                    new FileWriter("log/HadoopEva@" + EvaClient.currentTime() + ".log"));
+                    new FileWriter("log" + seperator + "HadoopEva@" + System.currentTimeMillis() + ".log"));
             EvaClient evaClient = new EvaClient(client, System.out, writer);
             evaClient.setTaskTime(taskTime);
             evaClient.setReturnCount(retCnt);
@@ -61,7 +62,7 @@ public class HadoopEva {
             evaClient.testSR("SequentialExecute", repeatCnt);
             evaClient.testSR("ParallelExecute", repeatCnt);
             
-            evaClient.setReturnCount(retCnt / 2); // to reduce pressure
+            evaClient.setReturnCount(retCnt);
             for (int i = 1; i <= 3; ++i) {
                 System.out.println("\n# " + i);
                 evaClient.testPR("SequentialExecute", rpsSE, sec);

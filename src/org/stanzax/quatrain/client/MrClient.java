@@ -17,7 +17,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.stanzax.quatrain.io.ChannelBuffer;
+import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
@@ -97,7 +97,7 @@ public class MrClient {
             // Register for reply
             channel.configureBlocking(false);
             SelectionKey readKey = channel.register(selector, SelectionKey.OP_READ);
-            readKey.attach(new ChannelBuffer(channel));
+            readKey.attach(new InputChannelBuffer(channel));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -146,11 +146,11 @@ public class MrClient {
                     channelPool.size());
         }
         
-        /** Read complete remote call replies */
+        /** Read complete remote call replyQueue */
         private void doRead(SelectionKey key) throws IOException {
-            ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
-            if (channelBuffer != null) {
-                byte[] data = channelBuffer.read();
+            InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
+            if (inBuf != null) {
+                byte[] data = inBuf.read();
                 if (data != null) {
                     if (Log.DEBUG) Log.action("Receive reply with .length", 
                             data.length);
@@ -170,7 +170,7 @@ public class MrClient {
                             results.putError(errorMessage.getValue().toString());
                         } else if (!results.putData(dataIn)) {
                             key.cancel();
-                            channelPool.putSocketChannel(channelBuffer.getChannel());
+                            channelPool.putSocketChannel(inBuf.getChannel());
                         }
                     } else Log.info("No such reply set #:", callID.getValue());
                 }
