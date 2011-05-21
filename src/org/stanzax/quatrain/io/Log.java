@@ -3,6 +3,9 @@
  */
 package org.stanzax.quatrain.io;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -12,45 +15,59 @@ import java.util.Date;
  */
 public class Log {
     
-    public static boolean debug = false;
+    public static boolean DEBUG = false;
+    public static BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out));
     
     public static void setDebug(int option) {
-        if (option == NONE) {
-            debug = false;
+        if ((option & NONE) == 0) {
+            DEBUG = false;
             return;
-        } else debug = true;
-        if (option >= STATE) {
-            state = true;
-            option -= STATE;
-        } else state = false;
-        if (option >= ACTION) {
+        } else DEBUG = true;
+        
+        if ((option & ACTION) == 1)
             action = true;
-            option -= ACTION;
-        } else action = false;
+        if ((option & STATE) == 1)
+            state = true;
+    }
+    
+    public static void flush() {
+        try {
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     public static void state(int frequency, String info, Object... values) {
-        if (!debug || !state) return;
+        if (!state) return;
         if ((int)(Math.random() * frequency) == 0)
-            log(" -- -- -> STATE @", info, values);
+            log(" -- -- -> STATE @", MS_TIME, info, values);
     }
     
     public static void action(String info, Object...values) {
-        if (!debug || !action) return;
-        log(" -- -> DEBUG @", info, values);
+        if (!action) return;
+        log(" -- -> DEBUG @", MS_TIME, info, values);
     }
 
     public static void info(String info, Object...values) {
-        log(" -> INFO @", info, values);
+        log(" -> INFO @", DATE_TIME, info, values);
     }
     
-    private static void log(String header, String info, Object[] values) {
+    private static void log(String header, int timeFormat, String info, Object[] values) {
         StringBuffer strBuf = new StringBuffer();
-        strBuf.append(header).append(currentTime()).append(" - ").append(info);
+        strBuf.append(header);
+        if (timeFormat == DATE_TIME) strBuf.append(currentTime());
+        else if (timeFormat == MS_TIME) strBuf.append(System.currentTimeMillis());
+        
+        strBuf.append(" - ").append(info);
         for (Object value : values) {
             strBuf.append(" : ").append(value);
         }
-        System.out.println(strBuf);
+        try {
+            Log.out.write(strBuf.append('\n').toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     } 
     
     private static String currentTime() {
@@ -59,9 +76,12 @@ public class Log {
         return formatter.format(new Date());
     }
     
-    public static final int NONE = 0;
-    public static final int ACTION = 1;
-    public static final int STATE = 2;
+    public static final int NONE = 0xf;
+    public static final int ACTION = 0x1;
+    public static final int STATE = 0x2;
+    
+    public static final int DATE_TIME = 1;
+    public static final int MS_TIME = 2;
     
     private static boolean action = false;
     private static boolean state = false;

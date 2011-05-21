@@ -35,7 +35,7 @@ public class ReplySet {
     public void register(long callID) {
         this.callID = callID;
         waiting.put(callID, this);
-        if (Log.debug) Log.action("New result set is registered, .current total #", waiting.size());
+        if (Log.DEBUG) Log.action("New result set is registered, .current total #", waiting.size());
     }
     
     public boolean timedOut() {
@@ -103,13 +103,13 @@ public class ReplySet {
                 if (dataIn.available() == 0) { 
                     // end of frame denoting final return
                     replyQueue.add(new EOR());
-                    if (Log.debug) Log.action("[ReplySet] Call # reaches reply end.", callID);
+                    if (Log.DEBUG) Log.action("[ReplySet] Call # reaches reply end.", callID);
                     return false;
                 } else {
                     while (dataIn.available() > 0) {
                         returnType.readFields(dataIn);
                         replyQueue.add(returnType.getValue());
-                        if (Log.debug) Log.action("[ReplySet] Call # read in data.", 
+                        if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
                                 callID, returnType.getValue());
                     }
                     return true;

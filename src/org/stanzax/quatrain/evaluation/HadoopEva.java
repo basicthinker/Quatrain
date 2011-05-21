@@ -61,12 +61,11 @@ public class HadoopEva {
             evaClient.testSR("SequentialExecute", repeatCnt);
             evaClient.testSR("ParallelExecute", repeatCnt);
             
+            evaClient.setReturnCount(retCnt / 2); // to reduce pressure
             for (int i = 1; i <= 3; ++i) {
                 System.out.println("\n# " + i);
                 evaClient.testPR("SequentialExecute", rpsSE, sec);
             }
-            
-            evaClient.setReturnCount(retCnt / 2); // to reduce pressure
             for (int i = 1; i <= 3; ++i) {
                 System.out.println("\n# " + i);
                 evaClient.testPR("ParallelExecute", rpsPE, sec);

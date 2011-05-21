@@ -13,65 +13,58 @@ import java.nio.channels.SocketChannel;
  */
 public class ChannelBuffer {
 
+    public static final int FILL_LEN = 1;
+    public static final int FILL_DATA = 2;
+    public static final int FINAL = 3;
+
     public ChannelBuffer(SocketChannel channel) {
         this.channel = channel;
+        state = FILL_LEN; // prepared for receiving input
     }
     
-    public boolean hasLength() {
-        return !lengthBuf.hasRemaining();
-    }
-    
-    /** Get the number of bytes stored in data buffer */
-    public int getLength() {
-        if (dataBuf == null) return 0;
-        else return dataBuf.capacity();
-    }
-    
-    /** Return data of complete frame and clear this channel buffer */
-    public byte[] getData() {
-        try {
-            if (dataBuf == null || dataBuf.hasRemaining()) return null;
-            else return dataBuf.array();
-        } finally {
-            clear();
-        }
+    public byte[] read() {
+        while (true) {
+            try {
+                switch (state) {
+                case FILL_LEN:
+                    channel.read(lengthBuffer);
+                    if (lengthBuffer.hasRemaining()) {
+                        return null;
+                    } else {
+                        lengthBuffer.flip();
+                        dataBuffer = ByteBuffer.allocate(lengthBuffer.getInt());
+                        state = FILL_DATA;
+                        break;
+                    }
+                case FILL_DATA:
+                    channel.read(dataBuffer);
+                    if (dataBuffer.hasRemaining()) {
+                        return null;
+                    } else {
+                        state = FINAL;
+                        return dataBuffer.array();
+                    }
+                case FINAL:
+                    lengthBuffer.clear();
+                    dataBuffer = null;
+                    state = FILL_LEN;
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            "Invalid internal state in ChannelBuffer.");
+                }                
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } // main while
     }
     
     public SocketChannel getChannel() {
         return channel;
     }
     
-    public boolean tryReadLength() {
-        try {
-            channel.read(lengthBuf);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return !lengthBuf.hasRemaining();
-    }
-    
-    /** Try reading from channel and return if new frame is ready */
-    public boolean tryReadData() {
-        if (dataBuf == null) {
-            if (!lengthBuf.hasRemaining()) {
-                lengthBuf.flip();
-                dataBuf = ByteBuffer.allocate(lengthBuf.getInt());
-            } else return false;
-        }
-        try {
-            channel.read(dataBuf);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return !dataBuf.hasRemaining();
-    }
-    
-    public void clear() {
-        lengthBuf.clear();
-        dataBuf = null;
-    }
-    
     private SocketChannel channel;
-    private ByteBuffer lengthBuf = ByteBuffer.allocate(4);
-    private ByteBuffer dataBuf;
+    private ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+    private ByteBuffer dataBuffer;
+    private int state;
 }

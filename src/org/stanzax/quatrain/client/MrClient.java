@@ -92,7 +92,7 @@ public class MrClient {
                 channel.write(ByteBuffer.wrap(dataOut.getData(),
                         0, dataLength));
             }
-            if (Log.debug) Log.action("Send request with .callID .length", 
+            if (Log.DEBUG) Log.action("Send request with .callID .length", 
                     callID, dataLength);
             // Register for reply
             channel.configureBlocking(false);
@@ -130,8 +130,9 @@ public class MrClient {
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
-                            if (Log.debug) Log.state(1, "Select keys ...");
-                            if (key.isReadable()) doRead(key);
+                            if (Log.DEBUG) Log.state(1, "Select keys ...");
+                            if (key.isValid() && key.isReadable()) 
+                                doRead(key);
                         }
                         selectedKeys.clear();
                     }
@@ -148,13 +149,13 @@ public class MrClient {
         /** Read complete remote call replies */
         private void doRead(SelectionKey key) throws IOException {
             ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
-            if (channelBuffer != null && 
-                    (channelBuffer.hasLength() || channelBuffer.tryReadLength())) {
-                if (channelBuffer.tryReadData()) {
-                    if (Log.debug) Log.action("Receive reply with .length",
-                            channelBuffer.getLength());
+            if (channelBuffer != null) {
+                byte[] data = channelBuffer.read();
+                if (data != null) {
+                    if (Log.DEBUG) Log.action("Receive reply with .length", 
+                            data.length);
                     DataInputStream dataIn = new DataInputStream(
-                            new ByteArrayInputStream(channelBuffer.getData()));
+                            new ByteArrayInputStream(data));
                     // Read in call ID
                     Writable callID = writable.newInstance(Integer.class);
                     callID.readFields(dataIn);
@@ -171,9 +172,9 @@ public class MrClient {
                             key.cancel();
                             channelPool.putSocketChannel(channelBuffer.getChannel());
                         }
-                    }
-                } 
-            } 
+                    } else Log.info("No such reply set #:", callID.getValue());
+                }
+            }
         }
     }
 }

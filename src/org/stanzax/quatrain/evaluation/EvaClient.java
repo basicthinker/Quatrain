@@ -79,7 +79,7 @@ public class EvaClient {
         writer.write("\t" + taskTime);
         writer.write("\t" + returnCount +"\n");
         
-        final int interval = 1000 / rps * dispatcherCount;
+        final int interval = 1000 * dispatcherCount / rps ;
         if (interval < 3) { // prevent too short interval
             writer.write("Illegal interval: " + interval);
             writer.flush();

@@ -98,7 +98,7 @@ public class MrServer {
         long callID = threadCallID.get();
         // Second-level primitive according to the two-level ordering protocol
         orders.get(callID).second.incrementAndGet(); // locate between first-level primitives
-        if (Log.debug) Log.action("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
+        if (Log.DEBUG) Log.action("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
         
         Responder responder = new Responder(channel, callID, false,
                 value);
@@ -127,7 +127,7 @@ public class MrServer {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if (Log.debug) Log.action("Order removed for", callID);
+        if (Log.DEBUG) Log.action("Order removed for", callID);
         orders.remove(callID);
     }
     
@@ -167,7 +167,7 @@ public class MrServer {
         public void start() {
             // according to two-level ordering protocol
             orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
-            if (Log.debug) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
             super.start();
         }
 
@@ -186,7 +186,7 @@ public class MrServer {
             runnable.run();
             // according to two-level ordering protocol
             orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
-            if (Log.debug) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
         }
         
         private Runnable runnable;
@@ -211,12 +211,12 @@ public class MrServer {
         public void run() {
             while (isRunning) {
                 try {
-                    if (Log.debug) Log.state(1, "Listener is running ...", 1);
+                    if (Log.DEBUG) Log.state(1, "Listener is running ...", 1);
                     if (selector.select() > 0) { // if there exist new events
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
-                            if (Log.debug) Log.state(1, "Select keys ...");
+                            if (Log.DEBUG) Log.state(1, "Select keys ...");
                             if (key.isAcceptable()) {
                                 // retrieve the associated acceptance channel
                                 ServerSocketChannel acceptChannel = 
@@ -246,18 +246,18 @@ public class MrServer {
         /** Read complete remote call requests */
         private void readAndProcess(SelectionKey key) throws IOException {
             ChannelBuffer channelBuffer = (ChannelBuffer) key.attachment();
-            if (channelBuffer != null && 
-                    (channelBuffer.hasLength() || channelBuffer.tryReadLength())) {
-                if (channelBuffer.tryReadData()) { // after reading in the whole frame
-                    if (Log.debug) Log.action(
-                            "Read data of .length", channelBuffer.getLength());
+            if (channelBuffer != null) {
+                byte[] data = channelBuffer.read();
+                if (data != null) { // after reading in the whole frame
+                    if (Log.DEBUG) Log.action(
+                            "Read data of .length", data.length);
                     key.cancel();
                     // Create and trigger handler
                     Handler handler = new Handler(
-                            channelBuffer.getData(), channelBuffer.getChannel());
-                    handlerExecutor.execute(handler);
+                            data, channelBuffer.getChannel());
+                    handlerExecutor.execute(handler); 
                 } 
-            } 
+            }
         }
 
         /** Hold one selector to tell socket events */
@@ -273,7 +273,7 @@ public class MrServer {
 
         @Override
         public void run() {
-            if (Log.debug) Log.state(1, "Handler is running ...", 1);
+            if (Log.DEBUG) Log.state(1, "Handler is running ...", 1);
             DataInputStream dataIn = new DataInputStream(
                     new ByteArrayInputStream(data));
             
@@ -296,7 +296,7 @@ public class MrServer {
             orders.put(callID, new Order());
             // First-level primitive according to two-level ordering protocol
             orders.get(callID).first.incrementAndGet(); // before ending freturn()
-            if (Log.debug) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
             
             try {
                 // Invoke corresponding procedure
@@ -313,7 +313,7 @@ public class MrServer {
                     parameters[i] = writableParameter.getValue();
                 }
                 procedure.invoke(MrServer.this, parameters);
-                if (Log.debug) {
+                if (Log.DEBUG) {
                     StringBuffer strParameters = new StringBuffer();
                     for (Object p : parameters) {
                         strParameters.append("{").append(p).append("}");
@@ -327,7 +327,7 @@ public class MrServer {
             } finally {
                 // First-level primitive according to two-level ordering protocal
                 orders.get(callID).first.decrementAndGet(); // shrink after thread creation
-                if (Log.debug) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+                if (Log.DEBUG) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
             }
             freturn(); // final return
         }
@@ -349,7 +349,7 @@ public class MrServer {
         @Override
         public void run() {
             try {
-                if (Log.debug) Log.state(1, "Responder is running ...", 1);
+                if (Log.DEBUG) Log.state(1, "Responder is running ...", 1);
                 // Construct reply main body (call ID + error flag + value)
                 DataOutputBuffer dataOut = new DataOutputBuffer();
                 writable.valueOf((int)callID).write(dataOut); //cast long call ID to original integer type
@@ -366,7 +366,7 @@ public class MrServer {
                     channel.write(ByteBuffer.wrap(dataOut.getData(),
                             0, dataLength));
                 }                
-                if (Log.debug) Log.action("Reply to .callID .length", callID, dataLength);
+                if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
