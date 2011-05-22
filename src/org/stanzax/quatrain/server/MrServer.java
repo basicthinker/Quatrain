@@ -363,10 +363,16 @@ public class MrServer {
                 ByteBuffer dataBuffer = ByteBuffer.wrap(dataOut.getData(), 
                         0, dataLength);
                 synchronized (channel) {
-                    while (lengthBuffer.hasRemaining())
+                    channel.write(lengthBuffer);
+                    while (lengthBuffer.hasRemaining()) {
+                        Thread.yield();
                         channel.write(lengthBuffer);
-                    while (dataBuffer.hasRemaining())
+                    }
+                    channel.write(dataBuffer);
+                    while (dataBuffer.hasRemaining()) {
+                        Thread.yield();
                         channel.write(dataBuffer);
+                    }
                 }                
                 if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
             } catch (IOException e) {
