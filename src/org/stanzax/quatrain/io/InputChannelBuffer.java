@@ -22,39 +22,32 @@ public class InputChannelBuffer {
         state = FILL_LEN; // prepared for receiving input
     }
     
-    public byte[] read() {
+    public byte[] read() throws IOException {
         while (true) {
-            try {
-                switch (state) {
-                case FILL_LEN:
-                    channel.read(lengthBuffer);
-                    if (lengthBuffer.hasRemaining()) {
-                        return null;
-                    } else {
-                        lengthBuffer.flip();
-                        dataBuffer = ByteBuffer.allocate(lengthBuffer.getInt());
-                        state = FILL_DATA;
-                        break;
-                    }
-                case FILL_DATA:
-                    channel.read(dataBuffer);
-                    if (dataBuffer.hasRemaining()) {
-                        return null;
-                    } else {
-                        state = FINAL;
-                        return dataBuffer.array();
-                    }
-                case FINAL:
-                    lengthBuffer.clear();
-                    dataBuffer = null;
-                    state = FILL_LEN;
+            switch (state) {
+            case FILL_LEN:
+                channel.read(lengthBuffer);
+                if (!lengthBuffer.hasRemaining()) {
+                    lengthBuffer.flip();
+                    dataBuffer = ByteBuffer.allocate(lengthBuffer.getInt());
+                    state = FILL_DATA;
                     break;
-                default:
-                    throw new IllegalArgumentException(
-                            "Invalid internal state in InputChannelBuffer.");
-                }                
-            } catch (IOException e) {
-                e.printStackTrace();
+                } else return null;
+            case FILL_DATA:
+                channel.read(dataBuffer);
+                if (!dataBuffer.hasRemaining()) {
+                    state = FINAL;
+                    break;
+                } else return null;
+            case FINAL:
+                lengthBuffer.clear();
+                byte[] data = dataBuffer.array();
+                dataBuffer = null;
+                state = FILL_LEN;
+                return data;
+            default:
+                throw new IllegalArgumentException(
+                        "Invalid internal state in InputChannelBuffer.");
             }
         } // main while
     }

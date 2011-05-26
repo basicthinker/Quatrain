@@ -217,24 +217,26 @@ public class MrServer {
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
                             if (Log.DEBUG) Log.state(1, "Select keys ...");
-                            if (key.isAcceptable()) {
-                                // retrieve the associated acceptance channel
-                                ServerSocketChannel acceptChannel = 
-                                    (ServerSocketChannel) key.channel();
-                                // establish connection and reading channel
-                                SocketChannel readChannel = 
-                                    acceptChannel.accept();
-                                if (readChannel != null) {
-                                    readChannel.configureBlocking(false);
-                                    readChannel.socket().setTcpNoDelay(true);
-                                    SelectionKey readKey = readChannel.register(
-                                            selector, SelectionKey.OP_READ);
-                                    readKey.attach(new InputChannelBuffer(readChannel));
-                                }
-                            } else if (key.isReadable()) {
-                                readAndProcess(key);
+                            if (key.isValid()) {
+                                if (key.isAcceptable()) {
+                                    // retrieve the associated acceptance channel
+                                    ServerSocketChannel acceptChannel = 
+                                        (ServerSocketChannel) key.channel();
+                                    // establish connection and reading channel
+                                    SocketChannel readChannel = 
+                                        acceptChannel.accept();
+                                    if (readChannel != null) {
+                                        readChannel.configureBlocking(false);
+                                        readChannel.socket().setTcpNoDelay(true);
+                                        SelectionKey readKey = readChannel.register(
+                                                selector, SelectionKey.OP_READ);
+                                        readKey.attach(new InputChannelBuffer(readChannel));
+                                    }
+                                } else if (key.isReadable()) {
+                                    doRead(key);
+                                } 
                             }
-                        }
+                        } // for
                         selectedKeys.clear();
                     }
                 } catch (Exception e) {
@@ -244,19 +246,24 @@ public class MrServer {
         }
 
         /** Read complete remote call requests */
-        private void readAndProcess(SelectionKey key) throws IOException {
+        private void doRead(SelectionKey key) {
             InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
             if (inBuf != null) {
-                byte[] data = inBuf.read();
-                if (data != null) { // after reading in the whole frame
-                    if (Log.DEBUG) Log.action(
-                            "Read data of .length", data.length);
+                try {
+                    byte[] data = inBuf.read();
+                    if (data != null) { // after reading in the whole frame
+                        if (Log.DEBUG) Log.action(
+                                "Read data of .length", data.length);
+                        key.cancel();
+                        // Create and trigger handler
+                        Handler handler = new Handler(
+                                data, inBuf.getChannel());
+                        handlerExecutor.execute(handler); 
+                    } 
+                } catch (IOException e) {
                     key.cancel();
-                    // Create and trigger handler
-                    Handler handler = new Handler(
-                            data, inBuf.getChannel());
-                    handlerExecutor.execute(handler); 
-                } 
+                    e.printStackTrace();
+                }
             }
         }
 

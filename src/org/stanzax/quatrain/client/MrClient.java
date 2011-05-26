@@ -131,8 +131,13 @@ public class MrClient {
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
                             if (Log.DEBUG) Log.state(1, "Select keys ...");
-                            if (key.isValid() && key.isReadable()) 
-                                doRead(key);
+                            if (key.isValid() && key.isReadable()) {
+                                InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
+                                if (doRead(inBuf)) {
+                                    key.cancel();
+                                    channelPool.putSocketChannel(inBuf.getChannel());
+                                }
+                            }
                         }
                         selectedKeys.clear();
                     }
@@ -147,34 +152,42 @@ public class MrClient {
         }
         
         /** Read complete remote call replyQueue */
-        private void doRead(SelectionKey key) throws IOException {
-            InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
+        private boolean doRead(InputChannelBuffer inBuf) {
             if (inBuf != null) {
-                byte[] data = inBuf.read();
+                byte[] data = null;
+                try {
+                    data = inBuf.read();
+                } catch (IOException e) {
+                    return true;
+                }
                 if (data != null) {
                     if (Log.DEBUG) Log.action("Receive reply with .length", 
                             data.length);
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
-                    // Read in call ID
-                    Writable callID = writable.newInstance(Integer.class);
-                    callID.readFields(dataIn);
-                    // Pass on data to corresponding result set
-                    ReplySet results = ReplySet.get((Integer)callID.getValue());
-                    if (results != null) {
-                        Writable error = writable.newInstance(Boolean.class);
-                        error.readFields(dataIn);
-                        if ((Boolean)error.getValue()) {
-                            Writable errorMessage = writable.newInstance(String.class);
-                            errorMessage.readFields(dataIn);
-                            results.putError(errorMessage.getValue().toString());
-                        } else if (!results.putData(dataIn)) {
-                            key.cancel();
-                            channelPool.putSocketChannel(inBuf.getChannel());
-                        }
-                    } else Log.info("No such reply set #:", callID.getValue());
+                    try {
+                        // Read in call ID
+                        Writable callID = writable.newInstance(Integer.class);
+                        callID.readFields(dataIn);
+                        // Pass on data to corresponding result set
+                        ReplySet results = ReplySet.get((Integer)callID.getValue());
+                        if (results != null) {
+                            Writable error = writable.newInstance(Boolean.class);
+                            error.readFields(dataIn);
+                            if ((Boolean)error.getValue()) {
+                                Writable errorMessage = writable.newInstance(String.class);
+                                errorMessage.readFields(dataIn);
+                                results.putError(errorMessage.getValue().toString());
+                            } else if (!results.putData(dataIn)) {
+                                return true;
+                            }
+                        } else Log.info("No such reply set #:", callID.getValue());
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
                 }
-            }
+                return false;
+            } else return true;
         }
     }
 }

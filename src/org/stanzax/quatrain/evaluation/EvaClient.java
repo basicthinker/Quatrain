@@ -45,6 +45,8 @@ public class EvaClient {
     
     /* Sequential Requests */
     public void testSR(String method, final int repeatCnt) throws IOException {
+        if (taskTime == 0) return;
+        
         printer.println("--------------------");
         printer.println(method + " SR");
         printer.println(" Repeat Count = " + repeatCnt);
@@ -69,6 +71,8 @@ public class EvaClient {
     
     /* Parallel Requests */
     public void testPR(String method, final int rps, final int sec) throws IOException {
+        if (taskTime == 0 || dispatcherCount == 0 || rps == 0 || sec == 0) return;
+        
         printer.println("--------------------");
         printer.println(method + " PR");
         printer.println(" Request/second = " + rps + "\tSeconds = " + sec);
