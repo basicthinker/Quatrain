@@ -96,8 +96,8 @@ public class MrClient {
                     callID, dataLength);
             // Register for reply
             channel.configureBlocking(false);
-            SelectionKey readKey = channel.register(selector, SelectionKey.OP_READ);
-            readKey.attach(new InputChannelBuffer(channel));
+            channel.register(selector, SelectionKey.OP_READ, 
+                    new InputChannelBuffer(channel));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -130,15 +130,17 @@ public class MrClient {
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
-                            if (Log.DEBUG) Log.state(1, "Select keys ...");
+                            if (Log.DEBUG) Log.state(10, "Select keys ...");
                             if (key.isValid() && key.isReadable()) {
                                 InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
-                                if (doRead(inBuf)) {
-                                    key.cancel();
-                                    channelPool.putSocketChannel(inBuf.getChannel());
-                                }
+                                if (inBuf != null) {
+                                    if (doRead(inBuf)) {
+                                        key.cancel();
+                                        channelPool.putSocketChannel(inBuf.getChannel());
+                                    }
+                                } else key.cancel();
                             }
-                        }
+                        } // for
                         selectedKeys.clear();
                     }
                 } catch (IOException e) {
@@ -153,41 +155,39 @@ public class MrClient {
         
         /** Read complete remote call replyQueue */
         private boolean doRead(InputChannelBuffer inBuf) {
-            if (inBuf != null) {
-                byte[] data = null;
+            byte[] data = null;
+            try {
+                data = inBuf.read();
+            } catch (IOException e) {
+                return true;
+            }
+            if (data != null) {
+                if (Log.DEBUG) Log.action("Receive reply with .length", 
+                        data.length);
+                DataInputStream dataIn = new DataInputStream(
+                        new ByteArrayInputStream(data));
                 try {
-                    data = inBuf.read();
-                } catch (IOException e) {
-                    return true;
+                    // Read in call ID
+                    Writable callID = writable.newInstance(Integer.class);
+                    callID.readFields(dataIn);
+                    // Pass on data to corresponding result set
+                    ReplySet results = ReplySet.get((Integer)callID.getValue());
+                    if (results != null) {
+                        Writable error = writable.newInstance(Boolean.class);
+                        error.readFields(dataIn);
+                        if ((Boolean)error.getValue()) {
+                            Writable errorMessage = writable.newInstance(String.class);
+                            errorMessage.readFields(dataIn);
+                            results.putError(errorMessage.getValue().toString());
+                        } else if (!results.putData(dataIn)) {
+                            return true;
+                        }
+                    } else Log.info("No such reply set #:", callID.getValue());
+                } catch (IOException ex) {
+                    ex.printStackTrace();
                 }
-                if (data != null) {
-                    if (Log.DEBUG) Log.action("Receive reply with .length", 
-                            data.length);
-                    DataInputStream dataIn = new DataInputStream(
-                            new ByteArrayInputStream(data));
-                    try {
-                        // Read in call ID
-                        Writable callID = writable.newInstance(Integer.class);
-                        callID.readFields(dataIn);
-                        // Pass on data to corresponding result set
-                        ReplySet results = ReplySet.get((Integer)callID.getValue());
-                        if (results != null) {
-                            Writable error = writable.newInstance(Boolean.class);
-                            error.readFields(dataIn);
-                            if ((Boolean)error.getValue()) {
-                                Writable errorMessage = writable.newInstance(String.class);
-                                errorMessage.readFields(dataIn);
-                                results.putError(errorMessage.getValue().toString());
-                            } else if (!results.putData(dataIn)) {
-                                return true;
-                            }
-                        } else Log.info("No such reply set #:", callID.getValue());
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-                return false;
-            } else return true;
+            }
+            return false;
         }
     }
 }

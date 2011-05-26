@@ -16,14 +16,13 @@ import org.stanzax.quatrain.server.MrServer;
 public class EvaServer extends MrServer {
 
     public EvaServer(String address, int port, WritableWrapper wrapper,
-            int handlerCount, int responderCount) throws IOException {
-        super(address, port, wrapper, handlerCount, responderCount);
+            int handlerCount) throws IOException {
+        super(address, port, wrapper, handlerCount);
     }
 
     public EvaServer(String address, int port, WritableWrapper wrapper,
-            ThreadPoolExecutor handlerExecutor,
-            ThreadPoolExecutor responderExecutor) throws IOException {
-        super(address, port, wrapper, handlerExecutor, responderExecutor);
+            ThreadPoolExecutor handlerExecutor) throws IOException {
+        super(address, port, wrapper, handlerExecutor);
     }
 
     public void SequentialExecute(int total, int divider) {

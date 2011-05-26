@@ -16,9 +16,9 @@ import org.stanzax.quatrain.server.MrServer;
  */
 public class SampleServer extends MrServer {
 
-    public SampleServer(String address, int port, WritableWrapper wrapper, int handlerCount, 
-            int responderCount) throws IOException {
-        super(address, port, wrapper, handlerCount, responderCount);
+    public SampleServer(String address, int port, WritableWrapper wrapper,
+            int handlerCount) throws IOException {
+        super(address, port, wrapper, handlerCount);
     }
 
 
@@ -40,7 +40,7 @@ public class SampleServer extends MrServer {
         try {
             // Set log options, combination of NONE, ACTION and STATE
             Log.setDebug(Log.ACTION + Log.STATE);
-            SampleServer server = new SampleServer("localhost", 3122, new HproseWrapper(), 3, 5);
+            SampleServer server = new SampleServer("localhost", 3122, new HproseWrapper(), 10);
             server.start();
         } catch (IOException e) {
             e.printStackTrace();
