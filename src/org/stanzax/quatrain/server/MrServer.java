@@ -139,17 +139,10 @@ public class MrServer {
             ByteBuffer dataBuffer = ByteBuffer.wrap(dataOut.getData(), 
                     0, dataLength);
             
+            assert(channel.isBlocking());
             synchronized (channel) {
                 channel.write(lengthBuffer);
-                while (lengthBuffer.hasRemaining()) {
-                    Thread.yield();
-                    channel.write(lengthBuffer);
-                }
                 channel.write(dataBuffer);
-                while (dataBuffer.hasRemaining()) {
-                    Thread.yield();
-                    channel.write(dataBuffer);
-                }
             }
             
             if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
@@ -232,11 +225,11 @@ public class MrServer {
             // Initialize one server-socket channel for acceptance
             ServerSocketChannel acceptChannel = ServerSocketChannel.open();
             acceptChannel.socket().bind(bindAddress);
-            acceptChannel.configureBlocking(false);
             // Create the multiplexor of channels
             selector = Selector.open();
             // Register initial acceptance channel to selector
             // so that the selector monitors the channel's acceptance events
+            acceptChannel.configureBlocking(false);
             acceptChannel.register(selector, SelectionKey.OP_ACCEPT);
         }
 
@@ -282,7 +275,6 @@ public class MrServer {
                     readKey.attach(new InputChannelBuffer(readChannel));
                 }
             } catch (IOException ex) {
-                key.cancel();
                 ex.printStackTrace();
             }
         }
@@ -318,6 +310,11 @@ public class MrServer {
         public Handler(byte[] data, SocketChannel channel) {
             this.data = data;
             this.channel = channel;
+            try {
+                this.channel.configureBlocking(true);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override

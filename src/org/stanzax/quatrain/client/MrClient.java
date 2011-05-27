@@ -87,7 +87,7 @@ public class MrClient {
             ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
             lengthBuffer.flip();
             // Send RPC request
-            synchronized(channel) {
+            synchronized(channel) { // channel in blocking mode
                 channel.write(lengthBuffer);
                 channel.write(ByteBuffer.wrap(dataOut.getData(),
                         0, dataLength));
