@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.DataOutputBuffer;
@@ -91,10 +92,6 @@ public class MrServer {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        // Second-level primitive according to the two-level ordering protocol
-        orders.get(callID).second.incrementAndGet(); // locate between first-level primitives
-        if (Log.DEBUG) Log.action("Thread .ID [+] 2nd-level order", Thread.currentThread().getId());
-        
         respond(channel, callID, false, value);
     }
 
@@ -102,17 +99,13 @@ public class MrServer {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        // Order according to the two-level ordering protocol
-        Order order = orders.get(callID);
-        while (order.first.get() != 0 || order.second.get() != 0)
+        // Final break according to the ordering protocol
+        AtomicInteger order = orders.get(callID);
+        while (order.get() != 0)
             Thread.yield();
         
         respond(channel, callID, false, new EOR());
-        
-        // Final break according to the two-level ordering protocol
-        while (order.second.get() >= 0)
-            Thread.yield();
-        
+
         try {
             channel.close();
         } catch (IOException e) {
@@ -148,9 +141,6 @@ public class MrServer {
             if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            // Second-level primitive according to two-level ordering protocol
-            orders.get(callID).second.decrementAndGet(); // shrink after data transmission
         }
     }
     
@@ -176,10 +166,10 @@ public class MrServer {
     protected Random random = new Random();
     /**
      * Save thread running states for each request 
-     * according to the two-level ordering protocol
+     * according to the ordering protocol
      */
-    protected ConcurrentHashMap<Long, Order> orders = 
-        new ConcurrentHashMap<Long, Order>();
+    protected ConcurrentHashMap<Long, AtomicInteger> orders = 
+        new ConcurrentHashMap<Long, AtomicInteger>();
     /** Method hash map */
     protected HashMap<String, Method> procedures =
         new HashMap<String, Method>();
@@ -191,9 +181,9 @@ public class MrServer {
         }
         
         public void start() {
-            // according to two-level ordering protocol
-            orders.get(threadCallID.get()).first.incrementAndGet(); // before zero-level freturn()
-            if (Log.DEBUG) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+            // according to ordering protocol
+            orders.get(threadCallID.get()).incrementAndGet(); // before zero-level freturn()
+            if (Log.DEBUG) Log.action("Thread .ID [+] sub-level order", Thread.currentThread().getId());
             super.start();
         }
 
@@ -210,9 +200,9 @@ public class MrServer {
         @Override
         public void run() {
             runnable.run();
-            // according to two-level ordering protocol
-            orders.get(threadCallID.get()).first.decrementAndGet(); // shrink after preturn() called
-            if (Log.DEBUG) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+            // according to ordering protocol
+            orders.get(threadCallID.get()).decrementAndGet(); // shrink after preturn() called
+            if (Log.DEBUG) Log.action("Thread .ID [-] sub-level order", Thread.currentThread().getId());
         }
         
         private Runnable runnable;
@@ -319,7 +309,7 @@ public class MrServer {
 
         @Override
         public void run() {
-            if (Log.DEBUG) Log.state(1, "Handler is running ...", 1);
+            if (Log.DEBUG) Log.action("Handler starts ...");
             DataInputStream dataIn = new DataInputStream(
                     new ByteArrayInputStream(data));
             
@@ -338,10 +328,9 @@ public class MrServer {
             threadCallID.set(callID);
             threadChannel.set(channel);
             
-            // Create order for the two-level ordering protocol 
-            orders.put(callID, new Order());
-            // First-level primitive according to two-level ordering protocol
-            orders.get(callID).first.incrementAndGet(); // before ending freturn()
+            // Create order for the ordering protocol
+            AtomicInteger order = new AtomicInteger(1);
+            orders.put(callID, order);
             if (Log.DEBUG) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
             
             try {
@@ -371,8 +360,8 @@ public class MrServer {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                // First-level primitive according to two-level ordering protocal
-                orders.get(callID).first.decrementAndGet(); // shrink after thread creation
+                // Primitive according to ordering protocal
+                orders.get(callID).decrementAndGet(); // shrink after thread creation
                 if (Log.DEBUG) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
             }
             freturn(); // final return

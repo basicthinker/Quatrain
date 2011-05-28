@@ -3,9 +3,7 @@
  */
 package org.stanzax.quatrain.io;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -16,7 +14,7 @@ import java.util.Date;
 public class Log {
     
     public static boolean DEBUG = false;
-    public static BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out));
+    public static PrintStream out = System.out;
     
     public static void setDebug(int option) {
         if ((option & NONE) == 0) {
@@ -28,14 +26,6 @@ public class Log {
             action = true;
         if ((option & STATE) == 1)
             state = true;
-    }
-    
-    public static void flush() {
-        try {
-            out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
     
     public static void state(int frequency, String info, Object... values) {
@@ -63,11 +53,7 @@ public class Log {
         for (Object value : values) {
             strBuf.append(" : ").append(value);
         }
-        try {
-            Log.out.write(strBuf.append('\n').toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Log.out.println(strBuf.toString());
     } 
     
     private static String currentTime() {
