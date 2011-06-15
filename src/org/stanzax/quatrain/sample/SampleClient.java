@@ -17,7 +17,7 @@ public class SampleClient {
 
     static int expected;
     
-    private static void callback(Object returnValue) {
+    private static void doWorkOn(Object returnValue) {
         if (returnValue.equals("3.1415926")) --expected; // one return arrives
         else Log.info("WRONG RETURN", returnValue.toString());
     }
@@ -45,11 +45,11 @@ public class SampleClient {
             // incrementally retrieve partial returns
             while (records.hasMore()) {
                 // do work on each partial return
-                callback(records.nextElement());
+                doWorkOn(records.nextElement());
             }
             // judge whether all returns arrive
             if (records.isPartial())
-                Log.info("Results are omitted.");
+                Log.info("Some results are omitted.");
             else // check the returns are correct or not
                 Log.info(expected == 0 ? "Check" : "*!WRONG!*", parameter, expected);
         } catch (Exception e) {

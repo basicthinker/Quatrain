@@ -5,6 +5,7 @@ package org.stanzax.quatrain.server;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -22,8 +23,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.InputChannelBuffer;
-import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
@@ -120,22 +121,22 @@ public class MrServer {
         try {
             if (Log.DEBUG) Log.state(1, "Responder is running ...", 1);
             // Construct reply main body (call ID + error flag + value)
-            DataOutputBuffer dataOut = new DataOutputBuffer();
+            ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(1024);
+            DataOutputStream dataOut = new DataOutputStream(arrayOut);
+            dataOut.writeInt(0); // occupied ahead for length
             writable.valueOf((int)callID).write(dataOut); //cast long call ID to original integer type
             writable.valueOf(error).write(dataOut);
             writable.valueOf(value).write(dataOut);
             dataOut.flush();
-            // Calculate data length
-            int dataLength = dataOut.getDataLength();
-            ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
-            lengthBuffer.flip();
-            ByteBuffer dataBuffer = ByteBuffer.wrap(dataOut.getData(), 
+            // Allocate byte buffer and insert ahead data length
+            int dataLength = dataOut.size();
+            ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
                     0, dataLength);
+            replyBuffer.putInt(0, dataLength - 4);
             
             assert(channel.isBlocking());
             synchronized (channel) {
-                channel.write(lengthBuffer);
-                channel.write(dataBuffer);
+                channel.write(replyBuffer);
             }
             
             if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);

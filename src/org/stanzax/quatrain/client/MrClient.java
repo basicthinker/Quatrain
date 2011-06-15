@@ -5,6 +5,7 @@ package org.stanzax.quatrain.client;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
@@ -17,8 +18,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.InputChannelBuffer;
-import org.stanzax.quatrain.io.DataOutputBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
 import org.stanzax.quatrain.io.Writable;
@@ -75,22 +76,23 @@ public class MrClient {
         results.register(callID);
         try {
             SocketChannel channel = channelPool.getSocketChannel(address);
-            DataOutputBuffer dataOut = new DataOutputBuffer();
+            ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(128);
+            DataOutputStream dataOut = new DataOutputStream(arrayOut);
+            dataOut.writeInt(0); // occupied ahead for length
             writable.valueOf(callID).write(dataOut); //write call ID
             writable.valueOf(procedureName).write(dataOut); //write the procedure name
             for (Object parameter : parameters) { //write procedure parameters
                 writable.valueOf(parameter).write(dataOut);
             }
             dataOut.flush();
-            
-            int dataLength = dataOut.getDataLength();
-            ByteBuffer lengthBuffer = ByteBuffer.allocate(4).putInt(dataLength);
-            lengthBuffer.flip();
+            // Allocate byte buffer and insert ahead data length
+            int dataLength = dataOut.size();
+            ByteBuffer requestBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
+                    0, dataLength);
+            requestBuffer.putInt(0, dataLength - 4);
             // Send RPC request
             synchronized(channel) { // channel in blocking mode
-                channel.write(lengthBuffer);
-                channel.write(ByteBuffer.wrap(dataOut.getData(),
-                        0, dataLength));
+                channel.write(requestBuffer);
             }
             if (Log.DEBUG) Log.action("Send request with .callID .length", 
                     callID, dataLength);
@@ -142,7 +144,7 @@ public class MrClient {
                             }
                         } // for
                         selectedKeys.clear();
-                    }
+                    } else Thread.yield();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
