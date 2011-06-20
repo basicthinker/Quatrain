@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -27,6 +28,7 @@ import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
+import org.stanzax.quatrain.io.OutputChannelBuffer;
 import org.stanzax.quatrain.io.Writable;
 import org.stanzax.quatrain.io.WritableWrapper;
 
@@ -46,10 +48,13 @@ public class MrServer {
     /** User can configure server by providing refined thread pool executors. */
     public MrServer(String address, int port, WritableWrapper wrapper,
             ThreadPoolExecutor handlerExecutor) throws IOException {
-        this.bindAddress = new InetSocketAddress(address, port);
-
-        this.listener = new java.lang.Thread(new Listener());
-        this.listener.setDaemon(false);
+        bindAddress = new InetSocketAddress(address, port);
+        
+        listener = new Listener(); // create listener thread
+        listener.setDaemon(false);
+        
+        responder = new Responder();
+        responder.setDaemon(false);
         
         this.handlerExecutor = handlerExecutor;
         this.writable = wrapper;
@@ -82,6 +87,7 @@ public class MrServer {
         
         isRunning = true;
         listener.start();
+        responder.start();
         Log.info("Quatrain Service Starts.");
     }
 
@@ -151,9 +157,9 @@ public class MrServer {
     }
     
     private InetSocketAddress bindAddress;
-
     /** Each server holds one thread listening to target socket address */
-    private java.lang.Thread listener;
+    private Listener listener = new Listener();
+    private Responder responder = new Responder();
     
     /** Denote whether this server is still running */
     private volatile boolean isRunning;
@@ -163,10 +169,10 @@ public class MrServer {
     private ThreadPoolExecutor handlerExecutor;
     
     /** Set by Handler and retrieved by preturn() to get the connection */
-    protected final InheritableThreadLocal<SocketChannel> threadChannel = 
+    private final InheritableThreadLocal<SocketChannel> threadChannel = 
         new InheritableThreadLocal<SocketChannel>();
     /** Set by Handler and retrieved by preturn() to construct reply header */
-    protected final InheritableThreadLocal<Long> threadCallID = 
+    private final InheritableThreadLocal<Long> threadCallID = 
         new InheritableThreadLocal<Long>();
     
     private Random random = new Random();
@@ -215,7 +221,7 @@ public class MrServer {
 
     }
     
-    private class Listener implements Runnable {
+    private class Listener extends java.lang.Thread {
 
         public Listener() throws IOException {
             // Initialize one server-socket channel for acceptance
@@ -297,9 +303,9 @@ public class MrServer {
             }
         }
 
-        /** Hold one selector to tell socket events */
+        /** Private selector to tell socket events */
         private Selector selector;
-    }
+    } // Listener
 
     private class Handler implements Runnable {
 
@@ -376,4 +382,69 @@ public class MrServer {
         private byte[] data;
         private SocketChannel channel;
     } // Handler
+    
+    private class Responder extends java.lang.Thread {
+
+        public Responder() throws IOException {
+            selector = Selector.open();
+        }
+        
+        public void register(SocketChannel channel, int ops, ByteBuffer data) {
+            pending.incrementAndGet();
+            selector.wakeup();
+            try {
+                SelectionKey key = channel.register(selector, ops);
+                OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
+                if (out != null) {
+                    out.putData(data);
+                } else {
+                    key.attach(new OutputChannelBuffer(channel, data));
+                }
+            } catch (ClosedChannelException e) {
+                e.printStackTrace();
+            } finally {
+                pending.decrementAndGet();
+                synchronized (pending) {
+                    pending.notify();
+                }
+            }
+        }
+        
+        private void waitPending() throws InterruptedException {
+            synchronized (pending) {
+                while (pending.get() > 0) {
+                    pending.wait();
+                }
+            }
+        }
+        
+        @Override
+        public void run() {
+            while (isRunning){
+                try {
+                    waitPending(); // handle new registrations
+                    if (selector.select() > 0) {
+                        Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                        for (SelectionKey key : selectedKeys) {
+                            if (key.isValid() && key.isWritable()) {
+                                OutputChannelBuffer outBuf = 
+                                    (OutputChannelBuffer)key.attachment();
+                                if (outBuf != null) {
+                                    outBuf.write();
+                                } else key.cancel();
+                            }
+                        }
+                        selectedKeys.clear();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }   
+            }
+        }
+        
+        /** Private selector to tell socket events */
+        private Selector selector;
+        private AtomicInteger pending = new AtomicInteger();
+        
+    } // Responder
 }
