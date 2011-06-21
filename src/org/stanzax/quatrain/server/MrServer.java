@@ -99,7 +99,12 @@ public class MrServer {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        respond(channel, callID, false, value);
+        ByteBuffer reply = packData(callID, false, value);
+        responder.register(channel, SelectionKey.OP_WRITE, reply, false);
+        
+        if (Log.DEBUG) Log.action(
+                "Registered reply for .callID with .length", 
+                (int)callID, reply.capacity());
     }
 
     private void freturn() {
@@ -111,52 +116,38 @@ public class MrServer {
         while (order.get() != 0)
             Thread.yield();
         
-        try {
-            respond(channel, callID, true, new EOR());
-        } finally {
-            orders.remove(callID);
-            if (Log.DEBUG) Log.action("Order removed for", callID);
-        }
+        ByteBuffer reply = packData(callID, false, new EOR());
+        responder.register(channel, SelectionKey.OP_WRITE, reply, true);
 
-        try {
-            channel.socket().close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try {
-            channel.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        orders.remove(callID);
+        if (Log.DEBUG) Log.action(
+                "Registered reply for .callID with .length and removed order", 
+                (int)callID, reply.capacity());
     }
     
-    private void respond(SocketChannel channel,
-            long callID, boolean error, Object value) {
+    /**
+     * Construct reply main body (call ID + error flag + value)
+     * */
+    private ByteBuffer packData(long callID, boolean error, Object value) {
+        // TODO BUG: reply in fixed size 1024. Abstracted to independent class.
+        ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(1024);
+        DataOutputStream dataOut = new DataOutputStream(arrayOut);
         try {
-            if (Log.DEBUG) Log.state(1, "Responder is running ...", 1);
-            // Construct reply main body (call ID + error flag + value)
-            ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(1024);
-            DataOutputStream dataOut = new DataOutputStream(arrayOut);
             dataOut.writeInt(0); // occupied ahead for length
             writable.valueOf((int)callID).write(dataOut); //cast long call ID to original integer type
             writable.valueOf(error).write(dataOut);
             writable.valueOf(value).write(dataOut);
             dataOut.flush();
-            // Allocate byte buffer and insert ahead data length
-            int dataLength = dataOut.size();
-            ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
-                    0, dataLength);
-            replyBuffer.putInt(0, dataLength - 4);
-            
-            assert(channel.isBlocking());
-            synchronized (channel) {
-                channel.write(replyBuffer);
-            }
-            
-            if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
         }
+        // Allocate byte buffer and insert ahead data length
+        int dataLength = dataOut.size();
+        ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
+                0, dataLength);
+        replyBuffer.putInt(0, dataLength - 4);
+        return replyBuffer;
     }
     
     private InetSocketAddress bindAddress;
@@ -319,16 +310,10 @@ public class MrServer {
         public Handler(byte[] data, SocketChannel channel) {
             this.data = data;
             this.channel = channel;
-            try {
-                this.channel.configureBlocking(true);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
 
         @Override
         public void run() {
-            if (Log.DEBUG) Log.action("Handler starts ...");
             DataInputStream dataIn = new DataInputStream(
                     new ByteArrayInputStream(data));
             
@@ -366,14 +351,17 @@ public class MrServer {
                     writableParameter.readFields(dataIn);
                     parameters[i] = writableParameter.getValue();
                 }
-                procedure.invoke(MrServer.this, parameters);
+                
                 if (Log.DEBUG) {
                     StringBuilder strParameters = new StringBuilder();
                     for (Object p : parameters) {
                         strParameters.append("{").append(p).append("}");
                     }
-                    Log.action("Invoked procedure", procedureName.getValue(), strParameters);
+                    Log.action("Invoking procedure", procedureName.getValue(), strParameters);
                 }
+                
+                procedure.invoke(MrServer.this, parameters);
+                
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -394,16 +382,24 @@ public class MrServer {
             selector = Selector.open();
         }
         
-        public void register(SocketChannel channel, int ops, ByteBuffer data) {
+        public void register(SocketChannel channel, int ops, ByteBuffer data, boolean isFinal) {
             pending.incrementAndGet();
             selector.wakeup();
             try {
-                SelectionKey key = channel.register(selector, ops);
-                OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
-                if (out != null) {
-                    out.putData(data);
-                } else {
-                    key.attach(new OutputChannelBuffer(channel, data));
+                SelectionKey key = channel.keyFor(selector);
+                if (key != null) {
+                    OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
+                    while (out == null) {
+                        Thread.yield();
+                        out = (OutputChannelBuffer) key.attachment();
+                    }
+                    out.putData(data, isFinal);
+                } else synchronized (channel) {
+                    key = channel.keyFor(selector);
+                    if (key == null) {
+                        channel.register(selector, SelectionKey.OP_WRITE, 
+                                new OutputChannelBuffer(channel, data, isFinal));
+                    } else ((OutputChannelBuffer)key.attachment()).putData(data, isFinal);
                 }
             } catch (ClosedChannelException e) {
                 e.printStackTrace();
@@ -434,9 +430,9 @@ public class MrServer {
                             if (key.isValid() && key.isWritable()) {
                                 OutputChannelBuffer outBuf = 
                                     (OutputChannelBuffer)key.attachment();
-                                if (outBuf != null) {
-                                    outBuf.write();
-                                } else key.cancel();
+                                if (outBuf != null && !outBuf.write()) {
+                                    key.cancel();
+                                }
                             }
                         }
                         selectedKeys.clear();
