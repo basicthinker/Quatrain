@@ -383,30 +383,36 @@ public class MrServer {
         }
         
         public void register(SocketChannel channel, int ops, ByteBuffer data, boolean isFinal) {
-            pending.incrementAndGet();
-            selector.wakeup();
-            try {
-                SelectionKey key = channel.keyFor(selector);
-                if (key != null) {
-                    OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
-                    while (out == null) {
-                        Thread.yield();
-                        out = (OutputChannelBuffer) key.attachment();
-                    }
-                    out.putData(data, isFinal);
-                } else synchronized (channel) {
+            SelectionKey key = channel.keyFor(selector);
+            if (key != null) {
+                OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
+                while (out == null) {
+                    Thread.yield();
+                    out = (OutputChannelBuffer) key.attachment();
+                }
+                out.putData(data, isFinal);
+            } else { // try to make new register of channel
+                synchronized (channel) {
                     key = channel.keyFor(selector);
                     if (key == null) {
-                        channel.register(selector, SelectionKey.OP_WRITE, 
-                                new OutputChannelBuffer(channel, data, isFinal));
-                    } else ((OutputChannelBuffer)key.attachment()).putData(data, isFinal);
+                        pending.incrementAndGet();
+                        selector.wakeup();
+                    
+                        try {
+                            channel.register(selector, SelectionKey.OP_WRITE, 
+                                    new OutputChannelBuffer(channel, data, isFinal));
+                        } catch (ClosedChannelException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
-            } catch (ClosedChannelException e) {
-                e.printStackTrace();
-            } finally {
-                pending.decrementAndGet();
-                synchronized (pending) {
-                    pending.notify();
+                if (key != null) {
+                    ((OutputChannelBuffer)key.attachment()).putData(data, isFinal);
+                } else {
+                    int val = pending.decrementAndGet();
+                    if (val <= 0) synchronized (pending) {
+                        pending.notify();
+                    } 
                 }
             }
         }
