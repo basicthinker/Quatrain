@@ -129,7 +129,6 @@ public class MrServer {
      * Construct reply main body (call ID + error flag + value)
      * */
     private ByteBuffer packData(long callID, boolean error, Object value) {
-        // TODO BUG: reply in fixed size 1024. Abstracted to independent class.
         ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(1024);
         DataOutputStream dataOut = new DataOutputStream(arrayOut);
         try {
@@ -409,8 +408,8 @@ public class MrServer {
                 if (key != null) {
                     ((OutputChannelBuffer)key.attachment()).putData(data, isFinal);
                 } else {
-                    int val = pending.decrementAndGet();
-                    if (val <= 0) synchronized (pending) {
+                    int cnt = pending.decrementAndGet();
+                    if (cnt <= 0) synchronized (pending) {
                         pending.notify();
                     } 
                 }
