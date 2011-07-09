@@ -5,7 +5,6 @@ package org.stanzax.quatrain.client;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -17,9 +16,6 @@ import org.stanzax.quatrain.io.Writable;
 
 /**
  * Container of multiple returns
- * 
- * @param <ElementType>
- *            Type of returns
  */
 public class ReplySet {
     
@@ -32,14 +28,14 @@ public class ReplySet {
      * Register for awaiting reply. 
      * Invoked before sending request to guarantee no reply omitted.
      */
-    public void register(long callID) {
+    public void register(int callID) {
         this.callID = callID;
         waiting.put(callID, this);
         if (Log.DEBUG) Log.action("New result set is registered, .current total #", waiting.size());
     }
     
     public boolean timedOut() {
-        return isTimedOut;
+        return timedOut;
     }
     
     public boolean hasError() {
@@ -48,40 +44,26 @@ public class ReplySet {
     
     /** Whether this set contains all expected results including possible errors */
     public boolean isPartial() {
-        return !isDone;
+        return !done;
     }
     
     public boolean hasMore() {
-        if (buffer != null) return true;
-        Object element = nextElement();
-        if (element != null) {
-            buffer = element;
-            return true;
-        } else return false;
+        if (replyQueue.size() > 0) return true;
+        else if (timedOut) return false;
+        else return !done;
     }
 
     public Object nextElement() {
-        if (buffer != null) {
-            Object element = buffer;
-            buffer = null;
-            return element;
-        } else if (!isDone && !isTimedOut) {
+        if (!timedOut) {
             try {
                 Object element = replyQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                if (element == null) isTimedOut = true;
-                else if (element instanceof EOR) {
-                    isDone = true;
-                    return nextElement();
-                }
-                return element;
+                if (element == null) timedOut = true;
+                else if (!(element instanceof EOR)) return element;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        } else return replyQueue.poll();
-        if (System.currentTimeMillis() - beginTime > timeout) {
-            isTimedOut = true;
-            return null;
-        } else return nextElement();
+        }
+        return null;
     }
     
     public String errorMessage() {
@@ -98,11 +80,12 @@ public class ReplySet {
      * @return true if actual data are put, false if EOF or error is encountered
     */
     public boolean putData(DataInputStream dataIn) {
-        if (!isTimedOut) {
+        if (!timedOut) {
             try {
                 if (dataIn.available() == 0) { 
                     // end of frame denoting final return
                     replyQueue.add(new EOR());
+                    done = true;
                     if (Log.DEBUG) Log.action("[ReplySet] Call # reaches reply end.", callID);
                     return false;
                 } else {
@@ -122,7 +105,7 @@ public class ReplySet {
     }
 
     public void putError(String errorMessage) {
-        if (!isTimedOut) {
+        if (!timedOut) {
             errors.add(errorMessage);
         } else return;
     }
@@ -137,24 +120,18 @@ public class ReplySet {
         close();
     }
     
-    public static ReplySet get(long callID) {
+    public static ReplySet get(int callID) {
         return waiting.get(callID);
     }
     
-    public static Map<Long, ReplySet> getAll() {
-        return waiting;
-    }
-    
-    private long callID = 0;
+    private int callID = 0;
     private Writable returnType;
     private long timeout;
     private LinkedBlockingQueue<Object> replyQueue = new LinkedBlockingQueue<Object>();
     private Vector<String> errors = new Vector<String>();
-    /** Not holding value, only for deserialization */
-    private volatile boolean isDone = false;
-    private volatile boolean isTimedOut = false;
-    private long beginTime = System.currentTimeMillis();
-    private Object buffer = null;
-    private static ConcurrentHashMap<Long, ReplySet> waiting = 
-        new ConcurrentHashMap<Long, ReplySet>();
+
+    private volatile boolean done = false; // whether the EOR is enqueued.
+    private volatile boolean timedOut = false;
+    private static ConcurrentHashMap<Integer, ReplySet> waiting = 
+        new ConcurrentHashMap<Integer, ReplySet>();
 }

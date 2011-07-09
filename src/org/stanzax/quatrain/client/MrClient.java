@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -70,7 +71,7 @@ public class MrClient {
     
     public ReplySet invoke(long timeout, Type returnType, String procedureName,
             Object...parameters) {
-        int callID = counter.addAndGet(1);
+        int callID = counter.incrementAndGet();
         // Early create and register result set for awaiting reply
         ReplySet results = new ReplySet(writable.newInstance(returnType), timeout);
         results.register(callID);
@@ -91,6 +92,7 @@ public class MrClient {
                     0, dataLength);
             requestBuffer.putInt(0, dataLength - 4);
             // Send RPC request
+            assert(channel.isBlocking());
             synchronized(channel) { // channel in blocking mode
                 channel.write(requestBuffer);
             }
@@ -98,7 +100,7 @@ public class MrClient {
                     callID, dataLength);
             // Register for reply
             channel.configureBlocking(false);
-            channel.register(selector, SelectionKey.OP_READ, 
+            listener.register(channel, SelectionKey.OP_READ, 
                     new InputChannelBuffer(channel));
         } catch (IOException e) {
             e.printStackTrace();
@@ -111,28 +113,54 @@ public class MrClient {
     private WritableWrapper writable;
     /** Max time in millisecond to wait for a return */
     private long timeout;
-    /** Hold a selector waiting for reply */
-    private Selector selector = Selector.open();
     /** Hold a Listener thread waiting for reply */
-    private Thread listener = new Thread(new Listener());
+    private Listener listener = new Listener();
     
     /** Static call ID counter */
     private static AtomicInteger counter = new AtomicInteger();
     /** Static socket channel pool */
     private static SocketChannelPool channelPool = new SocketChannelPool(true);
     
-    private class Listener implements Runnable {
+    private class Listener extends Thread {
+        
+        public Listener() throws IOException {
+            selector = Selector.open();
+        }
 
+        public void register(SocketChannel channel, int ops, Object att) {
+            pending.incrementAndGet();
+            selector.wakeup();
+            try {
+                channel.register(selector, ops, att);
+            } catch (ClosedChannelException e) {
+                e.printStackTrace();
+            } finally {
+                int cnt = pending.decrementAndGet();
+                if (cnt <= 0) synchronized (pending) {
+                    pending.notify();
+                }
+            }
+        }
+        
+        private void waitPending() throws InterruptedException {
+            synchronized (pending) {
+                while (pending.get() > 0) {
+                    pending.wait();
+                }
+            }
+        }
+        
         @Override
         public void run() {
             Log.info("Client listener starts.");
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    if (selector.selectNow() > 0) { // non-blocking in order to go together with registration
+                    waitPending(); // handle new registrations
+                    if (selector.select() > 0) { // non-blocking in order to go together with registration
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
-                            if (Log.DEBUG) Log.state(10, "Select keys ...");
+                            if (Log.DEBUG) Log.state(1000, "Selecting keys ...");
                             if (key.isValid() && key.isReadable()) {
                                 InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
                                 if (inBuf != null) {
@@ -145,7 +173,7 @@ public class MrClient {
                         } // for
                         selectedKeys.clear();
                     } else Thread.yield();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -155,20 +183,18 @@ public class MrClient {
                     channelPool.size());
         }
         
-        /** Read complete remote call replyQueue */
+        /** Read complete remote call replyQueue 
+         * @return true if RPC's replies are ready or fail, 
+         *     false if further reading is necessary
+         */
         private boolean doRead(InputChannelBuffer inBuf) {
-            byte[] data = null;
             try {
-                data = inBuf.read();
-            } catch (IOException e) {
-                return true;
-            }
-            if (data != null) {
-                if (Log.DEBUG) Log.action("Receive reply with .length", 
-                        data.length);
-                DataInputStream dataIn = new DataInputStream(
-                        new ByteArrayInputStream(data));
-                try {
+                byte[] data = inBuf.read();
+                if (data != null) {
+                    if (Log.DEBUG) Log.action("Receive reply with .length", 
+                            data.length);
+                    DataInputStream dataIn = new DataInputStream(
+                            new ByteArrayInputStream(data));
                     // Read in call ID
                     Writable callID = writable.newInstance(Integer.class);
                     callID.readFields(dataIn);
@@ -185,11 +211,16 @@ public class MrClient {
                             return true;
                         }
                     } else Log.info("No such reply set #:", callID.getValue());
-                } catch (IOException ex) {
-                    ex.printStackTrace();
                 }
+                return false;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return true;
             }
-            return false;
-        }
-    }
+        } // doRead
+        
+        /** Hold a selector waiting for reply */
+        private Selector selector;
+        private AtomicInteger pending = new AtomicInteger();
+    } // Listener
 }
