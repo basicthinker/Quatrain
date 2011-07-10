@@ -44,7 +44,7 @@ public class HproseEva {
         MrClient client;
         try {
             client = new MrClient(InetAddress.getByName(args[0]),
-                    Integer.valueOf(args[1]), new HproseWrapper(), taskTime * 2);
+                    Integer.valueOf(args[1]), new HproseWrapper(), taskTime * 10);
         } catch (Exception e) {
             e.printStackTrace();
             return;
@@ -59,17 +59,17 @@ public class HproseEva {
             evaClient.setReturnCount(retCnt);
             evaClient.setThreadCount(dispCnt);
             
-            evaClient.testSR("SequentialExecute", repeatCnt);
-            evaClient.testSR("ParallelExecute", repeatCnt);
-            
-            evaClient.setReturnCount(retCnt);
-            for (int i = 1; i <= 3; ++i) {
-                System.out.println("\n# " + i);
-                evaClient.testPR("SequentialExecute", rpsSE, sec);
+            if (repeatCnt != 0) {
+                evaClient.testSR("SequentialExecute", repeatCnt);
+                evaClient.testSR("ParallelExecute", repeatCnt);
             }
-            for (int i = 1; i <= 3; ++i) {
-                System.out.println("\n# " + i);
-                evaClient.testPR("ParallelExecute", rpsPE, sec);
+            
+            if (dispCnt != 0) {
+                for (int i = 1; i <= 3; ++i) {
+                    System.out.println("\n# " + i);
+                    evaClient.testPR("SequentialExecute", rpsSE, sec);
+                    evaClient.testPR("ParallelExecute", rpsPE, sec);
+                }
             }
             
             writer.flush();
