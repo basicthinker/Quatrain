@@ -58,13 +58,15 @@ public class EvaClient {
         while (returns.nextElement() != null);
         returns.close();
         
-        /* Evaluate each number of returns */
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
+            /* Evaluate each number of returns */
             double costTime = 0;
+            partCount = 0;
             for (int i = 0; i < repeatCnt; ++i) {
                 costTime += evaInvoke(method, retCnt);
             }
             printer.println(retCnt + " returns' average latency (ms) = " + costTime / repeatCnt);
+            if (partCount > 0) printer.println("\t# partial returns = " + partCount);
         }
         printer.println();
     }
@@ -98,6 +100,7 @@ public class EvaClient {
         /* Evaluate each number of returns */
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
             // Use several dispatchers to periodically trigger parallel requests
+            partCount = 0;
             for (int i = 0; i < dispatcherCount; ++i) {
                 new Thread(new Dispatcher(method, retCnt, interval, rps * sec / dispatcherCount)).start();
             }
@@ -114,6 +117,7 @@ public class EvaClient {
                 e.printStackTrace();
             }
             printer.println();
+            if (partCount > 0) printer.println("\t# partial returns = " + partCount);
             writer.flush();
         }    
     }
@@ -138,9 +142,14 @@ public class EvaClient {
         }
         returns.close();
         if (count != taskTime) { // expected number of replyQueue equals taskTime
-            printer.println("WRONG COUNT for # returns! # expected != # actual replyQueue .timed-out : " 
-                    + retCnt + " : " + taskTime + " : " + count + " : " + returns.timedOut());
-            return Double.MAX_VALUE;
+            if (returns.timedOut()) {
+                ++partCount;
+                return System.currentTimeMillis() - callTime; // use the last reply's time as the average
+            } else {
+                printer.println("WRONG COUNT for # returns! # expected != # actual replyQueue : " 
+                        + retCnt + " : " + taskTime + " : " + count);
+                return Double.MAX_VALUE; // regarded invalid
+            }
         } else return costTime / count;
     }
     
@@ -165,6 +174,8 @@ public class EvaClient {
     private int dispatcherCount = 0;
     private PrintStream printer;
     private BufferedWriter writer;
+    /* To approximate the number of partial returns due to timeout */
+    private volatile long partCount = 0;
     
     class Dispatcher implements Runnable {
 

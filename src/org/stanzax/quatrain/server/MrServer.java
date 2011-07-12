@@ -109,6 +109,7 @@ public class MrServer {
 
         try {
             channel.close();
+            channel.socket().close();
         } catch (IOException e) {
             e.printStackTrace();
         }

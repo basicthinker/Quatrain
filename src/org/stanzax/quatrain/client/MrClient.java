@@ -210,7 +210,8 @@ public class MrClient {
                         } else if (!results.putData(dataIn)) {
                             return true;
                         }
-                    } else Log.info("No such reply set #:", callID.getValue());
+                    } else if (Log.DEBUG)
+                        Log.info("No such reply set #:", callID.getValue());
                 }
                 return false;
             } catch (Exception e) {

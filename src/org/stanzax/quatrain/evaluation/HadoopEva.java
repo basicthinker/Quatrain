@@ -44,7 +44,7 @@ public class HadoopEva {
         MrClient client;
         try {
             client = new MrClient(InetAddress.getByName(args[0]),
-                    Integer.valueOf(args[1]), new HadoopWrapper(), taskTime * 10);
+                    Integer.valueOf(args[1]), new HadoopWrapper(), taskTime * 100);
         } catch (Exception e) {
             e.printStackTrace();
             return;
