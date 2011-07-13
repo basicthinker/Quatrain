@@ -135,9 +135,13 @@ public class MrServer {
                     0, dataLength);
             replyBuffer.putInt(0, dataLength - 4);
             
-            assert(channel.isBlocking());
+            assert(!channel.isBlocking());
             synchronized (channel) {
                 channel.write(replyBuffer);
+                while (replyBuffer.hasRemaining()) {
+                    Thread.yield();
+                    channel.write(replyBuffer);
+                }
             }
             
             if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
@@ -302,11 +306,6 @@ public class MrServer {
         public Handler(byte[] data, SocketChannel channel) {
             this.data = data;
             this.channel = channel;
-            try {
-                this.channel.configureBlocking(true);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
 
         @Override
