@@ -41,6 +41,7 @@ public class SocketChannelPool {
             } 
             try {
                 channel.close();
+                channel.socket().close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -98,6 +99,7 @@ public class SocketChannelPool {
             }
             try {
                 channel.close();
+                channel.socket().close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
