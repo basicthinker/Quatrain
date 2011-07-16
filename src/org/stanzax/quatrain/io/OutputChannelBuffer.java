@@ -72,6 +72,7 @@ public class OutputChannelBuffer {
                 break;
             case FINAL:
                 try {
+                    channel.socket().close();
                     channel.close();
                 } catch (IOException e) {
                     e.printStackTrace();

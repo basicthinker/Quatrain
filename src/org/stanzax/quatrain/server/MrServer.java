@@ -18,6 +18,7 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -50,8 +51,11 @@ public class MrServer {
             ThreadPoolExecutor handlerExecutor) throws IOException {
         bindAddress = new InetSocketAddress(address, port);
         
-        listener = new Listener(); // create listener thread
+        listener = new Listener();
         listener.setDaemon(false);
+        
+        registrant = new Registrant();
+        registrant.setDaemon(false);
         
         responder = new Responder();
         responder.setDaemon(false);
@@ -87,6 +91,7 @@ public class MrServer {
         
         isRunning = true;
         listener.start();
+        registrant.start();
         responder.start();
         Log.info("Quatrain Service Starts.");
     }
@@ -100,10 +105,10 @@ public class MrServer {
         long callID = threadCallID.get();
         
         ByteBuffer reply = packData(callID, false, value);
-        responder.register(channel, SelectionKey.OP_WRITE, reply, false);
+        registrant.put(channel, reply, false);
         
         if (Log.DEBUG) Log.action(
-                "Registered reply for .callID with .length", 
+                "Queued reply for .callID with .length", 
                 (int)callID, reply.capacity());
     }
 
@@ -117,10 +122,10 @@ public class MrServer {
             Thread.yield();
         
         ByteBuffer reply = packData(callID, false, new EOR());
-        responder.register(channel, SelectionKey.OP_WRITE, reply, true);
+        registrant.put(channel, reply, true);
 
         if (Log.DEBUG) Log.action(
-                "Registered reply for .callID with .length and removed order", 
+                "Queued reply for .callID with .length and removed order", 
                 (int)callID, reply.capacity());
     }
     
@@ -150,8 +155,9 @@ public class MrServer {
     
     private InetSocketAddress bindAddress;
     /** Each server holds one thread listening to target socket address */
-    private Listener listener = new Listener();
-    private Responder responder = new Responder();
+    private Listener listener;
+    private Registrant registrant;
+    private Responder responder;
     
     /** Denote whether this server is still running */
     private volatile boolean isRunning;
@@ -372,51 +378,57 @@ public class MrServer {
         private SocketChannel channel;
     } // Handler
     
+    private class Registrant extends java.lang.Thread {   
+        
+        public void run() {
+            while (isRunning) {
+                try {
+                    ReplyData reply = queue.take();
+                    responder.register(reply.channel, reply.data, reply.isFinal);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        public void put(SocketChannel channel, ByteBuffer data, boolean isFinal) {
+            ReplyData reply = new ReplyData(channel, data, isFinal);
+            try {
+                queue.put(reply);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        private BlockingQueue<ReplyData> queue = 
+            new LinkedBlockingQueue<ReplyData>();
+    } // Registrant
+    
     private class Responder extends java.lang.Thread {
 
         public Responder() throws IOException {
             selector = Selector.open();
         }
         
-        public void register(SocketChannel channel, int ops, ByteBuffer data, boolean isFinal) {
+        /**
+         * Register the socket channel with the writing selector if it has not been registered,
+         * otherwise append the reply data to the registered key's attachment (OutputChannelBuffer).
+         * Notice: this method is NOT thread-safe, and should only be invoked within a single thread.
+         */
+        public void register(SocketChannel channel, ByteBuffer data, boolean isFinal) {
             SelectionKey key = channel.keyFor(selector);
             if (key != null) {
                 OutputChannelBuffer out = (OutputChannelBuffer) key.attachment();
-                while (out == null) {
-                    Thread.yield();
-                    out = (OutputChannelBuffer) key.attachment();
-                }
                 out.putData(data, isFinal);
             } else { // try to make new register of channel
-                synchronized (channel) {
-                    key = channel.keyFor(selector);
-                    if (key == null) {
-                        pending.incrementAndGet();
-                        selector.wakeup();
-                    
-                        try {
-                            channel.register(selector, SelectionKey.OP_WRITE, 
-                                    new OutputChannelBuffer(channel, data, isFinal));
-                        } catch (ClosedChannelException e) {
-                            e.printStackTrace();
-                        }
+                synchronized (this) {
+                    selector.wakeup();
+                    try {
+                        channel.register(selector, SelectionKey.OP_WRITE, 
+                                new OutputChannelBuffer(channel, data, isFinal));
+                    } catch (ClosedChannelException e) {
+                        e.printStackTrace();
                     }
-                }
-                if (key != null) {
-                    ((OutputChannelBuffer)key.attachment()).putData(data, isFinal);
-                } else {
-                    int cnt = pending.decrementAndGet();
-                    if (cnt <= 0) synchronized (pending) {
-                        pending.notify();
-                    } 
-                }
-            }
-        }
-        
-        private void waitPending() throws InterruptedException {
-            synchronized (pending) {
-                while (pending.get() > 0) {
-                    pending.wait();
                 }
             }
         }
@@ -425,7 +437,7 @@ public class MrServer {
         public void run() {
             while (isRunning){
                 try {
-                    waitPending(); // handle new registrations
+                    synchronized (this) {}
                     if (selector.select() > 0) {
                         Set<SelectionKey> selectedKeys = selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
@@ -447,7 +459,6 @@ public class MrServer {
         
         /** Private selector to tell socket events */
         private Selector selector;
-        private AtomicInteger pending = new AtomicInteger();
         
     } // Responder
 }
