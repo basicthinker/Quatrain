@@ -21,7 +21,6 @@ public class OutputChannelBuffer {
     public OutputChannelBuffer(SocketChannel channel) {
         this.channel = channel;
         state = FRAME_INIT;
-        full = false;
     }
     
     public OutputChannelBuffer(SocketChannel channel, ByteBuffer data, boolean isFinal) {
@@ -31,8 +30,7 @@ public class OutputChannelBuffer {
 
     public void putData(ByteBuffer data, boolean isFinal) {
         try {
-            queue.put(data);
-            if (isFinal) full = true;
+            queue.put(new WriteData(data, isFinal));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -46,28 +44,24 @@ public class OutputChannelBuffer {
         while (true) {
             switch (state) {
             case FRAME_INIT:
-                data = queue.poll();
-                if (data != null) {
+                wdata = queue.poll();
+                if (wdata != null) {
                     state = PUT_DATA;
-                } else if (full) {
-                    state = FINAL;
                 } else return true;
                 break;
             case PUT_DATA:
                 try {
-                    channel.write(data);
+                    channel.write(wdata.data);
                 } catch (IOException e) {
                     e.printStackTrace();
                     state = FINAL;
                     break;
                 }
-                if (!data.hasRemaining()) {
-                    data = null;
-                    state = FRAME_INIT;
-                    
-                    if (Log.DEBUG) Log.action(
-                            "Finished some writing for Port # with # left",
-                            channel.socket().getPort(), queue.size());
+                if (!wdata.data.hasRemaining()) {
+                    if (!wdata.isFinal)
+                        state = FRAME_INIT;
+                    else state = FINAL;
+                    wdata.data = null;
                 } else return true;
                 break;
             case FINAL:
@@ -91,8 +85,16 @@ public class OutputChannelBuffer {
     
     private int state;
     private SocketChannel channel;
-    private LinkedBlockingQueue<ByteBuffer> queue = 
-        new LinkedBlockingQueue<ByteBuffer>();
-    private ByteBuffer data = null;
-    private boolean full;
+    private LinkedBlockingQueue<WriteData> queue = 
+        new LinkedBlockingQueue<WriteData>();
+    private WriteData wdata = null;
+    
+    class WriteData {
+        public WriteData(ByteBuffer data, boolean isFinal) {
+            this.data = data;
+            this.isFinal = isFinal;
+        }
+        public ByteBuffer data;
+        public boolean isFinal;
+    }
 }
