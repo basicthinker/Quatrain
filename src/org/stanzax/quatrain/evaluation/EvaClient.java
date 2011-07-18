@@ -43,6 +43,22 @@ public class EvaClient {
         this.writer = writer;
     }
     
+    /**
+     * Guarantee that at least three successive RPCs reply in normal delay,
+     * to avoid timed-out replies of last peak that may affect next evaluation.
+     * */
+    void avoidPeak(String method) {
+        while (true) {
+            int cnt = 0;
+            for (int i = 0; i < 3; ++i) {
+                if (evaInvoke(method, 1) < taskTime * 1.05)
+                    ++cnt;
+                else break;
+            }
+            if (cnt == 3) return;
+        }
+    }
+    
     /* Sequential Requests */
     public void testSR(String method, final int repeatCnt) throws IOException {
         if (taskTime == 0) return;
@@ -54,19 +70,17 @@ public class EvaClient {
         printer.println("--------------------");
         
         // Warm up
-        ReplySet returns = client.invoke(Double.class, method, taskTime, 3);
-        while (returns.nextElement() != null);
-        returns.close();
+        avoidPeak(method);
         
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
             /* Evaluate each number of returns */
             double costTime = 0;
-            partCount = 0;
+            partialCount = 0;
             for (int i = 0; i < repeatCnt; ++i) {
                 costTime += evaInvoke(method, retCnt);
             }
             printer.println(retCnt + " returns' average latency (ms) = " + costTime / repeatCnt);
-            if (partCount > 0) printer.println("\t# partial returns = " + partCount);
+            if (partialCount > 0) printer.println("\t# partial returns = " + partialCount);
         }
         printer.println();
     }
@@ -92,15 +106,13 @@ public class EvaClient {
             return;
         }
         
-        // Warm up
-        ReplySet returns = client.invoke(Double.class, method, taskTime, 3);
-        while (returns.nextElement() != null);
-        returns.close();
+        // Warm up and prevent previous impact
+        avoidPeak(method);
         
         /* Evaluate each number of returns */
         for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
             // Use several dispatchers to periodically trigger parallel requests
-            partCount = 0;
+            partialCount = 0;
             for (int i = 0; i < dispatcherCount; ++i) {
                 new Thread(new Dispatcher(method, retCnt, interval, rps * sec / dispatcherCount)).start();
             }
@@ -117,13 +129,18 @@ public class EvaClient {
                 e.printStackTrace();
             }
             printer.println();
-            if (partCount > 0) printer.println("\t# partial returns = " + partCount);
+            if (partialCount > 0) {
+                printer.println("\t# partial returns = " + partialCount);
+                avoidPeak(method);
+            }
             writer.flush();
         }    
     }
     
     /**
      * Use predefined parameters to invoke the method of specific number of returns.
+     * This method may increase the value of partialCount (partial count),
+     * so set it zero before the evaluated invocations to avoid side effects of previous ones.
      * @return cost time
      */
     private double evaInvoke(String method, int retCnt) {
@@ -143,7 +160,7 @@ public class EvaClient {
         returns.close();
         if (count != taskTime) { // expected number of replyQueue equals taskTime
             if (returns.timedOut()) {
-                ++partCount;
+                ++partialCount;
                 return System.currentTimeMillis() - callTime; // use the last reply's time as the average
             } else {
                 printer.println("WRONG COUNT for # returns! # expected != # actual replyQueue : " 
@@ -175,7 +192,7 @@ public class EvaClient {
     private PrintStream printer;
     private BufferedWriter writer;
     /* To approximate the number of partial returns due to timeout */
-    private volatile long partCount = 0;
+    private volatile long partialCount = 0;
     
     class Dispatcher implements Runnable {
 
