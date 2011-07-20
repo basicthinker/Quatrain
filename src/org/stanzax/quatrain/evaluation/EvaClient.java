@@ -53,9 +53,15 @@ public class EvaClient {
             for (int i = 0; i < 3; ++i) {
                 if (evaInvoke(method, 1) < taskTime * 1.05)
                     ++cnt;
-                else break;
             }
             if (cnt == 3) return;
+            else if (cnt > 0) continue;
+            else try {
+                long wait = taskTime * 10;
+                Thread.sleep(wait < 30000 ? wait : 30000);
+            } catch (InterruptedException e) {
+                continue;
+            }
         }
     }
     
