@@ -78,7 +78,6 @@ public class EvaClient {
         // Warm up
         avoidPeak(method);
         
-<<<<<<< HEAD
         for (int retCnt = 1; retCnt <= maxReturnNum; ++retCnt) {
             /* Evaluate each number of returns */
             double costTime = 0;
