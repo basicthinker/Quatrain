@@ -31,20 +31,20 @@ public class Log {
     public static void state(int frequency, String info, Object... values) {
         if (!state) return;
         if ((int)(Math.random() * frequency) == 0)
-            log(" -- -- -> STATE @", MS_TIME, info, values);
+            log(" -- -> STATE @", MS_TIME, info, values);
     }
     
     public static void action(String info, Object...values) {
         if (!action) return;
-        log(" -- -> DEBUG @", MS_TIME, info, values);
+        log(" -> DEBUG @", MS_TIME, info, values);
     }
 
     public static void info(String info, Object...values) {
-        log(" -> INFO @", DATE_TIME, info, values);
+        log("# -> INFO @", DATE_TIME, info, values);
     }
     
     private static void log(String header, int timeFormat, String info, Object[] values) {
-        StringBuffer strBuf = new StringBuffer();
+        StringBuilder strBuf = new StringBuilder();
         strBuf.append(header);
         if (timeFormat == DATE_TIME) strBuf.append(currentTime());
         else if (timeFormat == MS_TIME) strBuf.append(System.currentTimeMillis());

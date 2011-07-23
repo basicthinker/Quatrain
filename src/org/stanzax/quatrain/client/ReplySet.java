@@ -67,7 +67,7 @@ public class ReplySet {
     }
     
     public String errorMessage() {
-        StringBuffer errorInfo = new StringBuffer();
+        StringBuilder errorInfo = new StringBuilder();
         for (String error : errors) {
             errorInfo.append("[QUATRAIN]");
             errorInfo.append(error);

@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
@@ -37,7 +36,7 @@ public class MrClient {
         this(new InetSocketAddress(host, port), wrapper, timeout);
     }
     
-    public MrClient(SocketAddress address, WritableWrapper wrapper, long timeout) 
+    public MrClient(InetSocketAddress address, WritableWrapper wrapper, long timeout) 
     throws IOException {
         this.address = address;
         this.writable = wrapper;
@@ -52,8 +51,12 @@ public class MrClient {
      * @param address
      *            Socket address of target server
      */
-    public void useRemote(SocketAddress address) {
+    public void useRemote(InetSocketAddress address) {
         this.address = address;
+    }
+    
+    public InetSocketAddress getRemoteSocketAddress() {
+        return this.address;
     }
     
     public ReplySet invoke(Type returnType, String procedureName) {
@@ -109,7 +112,7 @@ public class MrClient {
     }
 
     /** Hold a socket address of the target server */
-    private SocketAddress address;
+    private InetSocketAddress address;
     private WritableWrapper writable;
     /** Max time in millisecond to wait for a return */
     private long timeout;

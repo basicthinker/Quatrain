@@ -28,7 +28,7 @@ public class EvaClient {
     }
     
     public void setReturnCount(int count) {
-        returnCount = count;
+        maxReturnNum = count;
     }
     
     public void setThreadCount(int num) {
@@ -69,23 +69,38 @@ public class EvaClient {
     public void testSR(String method, final int repeatCnt) throws IOException {
         if (taskTime == 0) return;
         
-        printer.println("--------------------");
-        printer.println(method + " SR");
-        printer.println(" Repeat Count = " + repeatCnt);
+        printer.print("########################################\n# ");
+        printer.println(method + " SR for Remote " + client.getRemoteSocketAddress().toString());
+        printer.println("#  Repeat Count = " + repeatCnt);
         printer.print(getReadableConfig());
-        printer.println("--------------------");
+        printer.println("# Return number\tLatency\tSTDEV\tBegin time\tEnd time");
         
         // Warm up
         avoidPeak(method);
         
-        for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
+        for (int retCnt = 1; retCnt <= maxReturnNum; ++retCnt) {
             /* Evaluate each number of returns */
             double costTime = 0;
+            double totalTime = 0;
+            double squareTime = 0;
             partialCount = 0;
+            long beginTime = System.currentTimeMillis();
             for (int i = 0; i < repeatCnt; ++i) {
-                costTime += evaInvoke(method, retCnt);
+                costTime = evaInvoke(method, retCnt);
+                // System.out.print(costTime + "\t");
+                totalTime += costTime;
+                squareTime += costTime * costTime;
             }
-            printer.println(retCnt + " returns' average latency (ms) = " + costTime / repeatCnt);
+            long endTime = System.currentTimeMillis();
+            double average = totalTime / repeatCnt;
+            double variance = (squareTime + average * (repeatCnt * average - 2 * totalTime)) / (repeatCnt - 1);
+            if (variance < 0 && variance > -0.00001) variance = 0;
+            double stdev = Math.sqrt(variance);
+            StringBuilder record = new StringBuilder();
+            record.append(retCnt).append('\t');
+            record.append(average).append('\t').append(stdev).append('\t');
+            record.append(beginTime).append('\t').append(endTime).append('\n');
+            printer.print(record.toString());
             if (partialCount > 0) printer.println("\t# partial returns = " + partialCount);
         }
         printer.println();
@@ -95,15 +110,15 @@ public class EvaClient {
     public void testPR(String method, final int rps, final int sec) throws IOException {
         if (taskTime == 0 || dispatcherCount == 0 || rps == 0 || sec == 0) return;
         
-        printer.println("--------------------");
-        printer.println(method + " PR");
-        printer.println(" Request/second = " + rps + "\tSeconds = " + sec);
+        printer.print("########################################\n# ");
+        printer.println(method + " PR for Remote " + client.getRemoteSocketAddress().toString());
+        printer.println("#  Request/second = " + rps + "\tSeconds = " + sec);
         printer.print(getReadableConfig());
-        printer.println("--------------------");
+        printer.println("########################################");
         
         writer.write("-1\t" + method);
         writer.write("\t" + taskTime);
-        writer.write("\t" + returnCount +"\n");
+        writer.write("\t" + maxReturnNum +"\n");
         
         final int interval = 1000 * dispatcherCount / rps ;
         if (interval < 3) { // prevent too short interval
@@ -116,7 +131,7 @@ public class EvaClient {
         avoidPeak(method);
         
         /* Evaluate each number of returns */
-        for (int retCnt = 1; retCnt <= returnCount; ++retCnt) {
+        for (int retCnt = 1; retCnt <= maxReturnNum; ++retCnt) {
             // Use several dispatchers to periodically trigger parallel requests
             partialCount = 0;
             for (int i = 0; i < dispatcherCount; ++i) {
@@ -177,10 +192,10 @@ public class EvaClient {
     }
     
     public String getReadableConfig() {
-        StringBuffer strBuf = new StringBuffer();
-        strBuf.append("Client Configuration @").append(currentTime()).append("\n");
-        strBuf.append(" Task time = ").append(taskTime).append("\n");
-        strBuf.append(" Max return count = ").append(returnCount).append("\n");
+        StringBuilder strBuf = new StringBuilder();
+        strBuf.append("# Client Configuration @").append(currentTime()).append("\n");
+        strBuf.append("#  Task time = ").append(taskTime).append("\n");
+        strBuf.append("#  Max return count = ").append(maxReturnNum).append("\n");
         return strBuf.toString();
     }
     
@@ -192,7 +207,7 @@ public class EvaClient {
     
     private MrClient client;
     private int taskTime = 0;
-    private int returnCount = 0;
+    private int maxReturnNum = 0;
 
     private int dispatcherCount = 0;
     private PrintStream printer;

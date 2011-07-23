@@ -351,7 +351,7 @@ public class MrServer {
                 }
                 procedure.invoke(MrServer.this, parameters);
                 if (Log.DEBUG) {
-                    StringBuffer strParameters = new StringBuffer();
+                    StringBuilder strParameters = new StringBuilder();
                     for (Object p : parameters) {
                         strParameters.append("{").append(p).append("}");
                     }
