@@ -35,8 +35,12 @@ public class SocketChannelPool {
     public void putSocketChannel(SocketChannel channel) {
         if (forceNew || !channel.isOpen() || !channel.isConnected()) {
             try {
-                channel.close();
                 channel.socket().close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } 
+            try {
+                channel.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -88,8 +92,12 @@ public class SocketChannelPool {
         /** Try to close both this channel and its underlying socket */
         public void close() {
             try {
-                channel.close();
                 channel.socket().close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                channel.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }

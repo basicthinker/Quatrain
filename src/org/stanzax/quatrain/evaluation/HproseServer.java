@@ -15,8 +15,6 @@ import org.stanzax.quatrain.io.WritableWrapper;
  *
  */
 public class HproseServer extends EvaServer {
-
-    public static int step = 5;
     
     /**
      * @param address

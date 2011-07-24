@@ -16,8 +16,6 @@ import org.stanzax.quatrain.io.WritableWrapper;
  */
 public class HadoopServer extends EvaServer {
 
-    public static int step = 5;
-    
     /**
      * @param address
      * @param port

@@ -41,6 +41,8 @@ public class MrClient {
         this.address = address;
         this.writable = wrapper;
         this.timeout = timeout;
+        
+        listener  = new Listener();
         listener.setDaemon(true);
         listener.start();   
     }
@@ -117,7 +119,7 @@ public class MrClient {
     /** Max time in millisecond to wait for a return */
     private long timeout;
     /** Hold a Listener thread waiting for reply */
-    private Listener listener = new Listener();
+    private Listener listener;
     
     /** Static call ID counter */
     private static AtomicInteger counter = new AtomicInteger();
@@ -166,12 +168,10 @@ public class MrClient {
                             if (Log.DEBUG) Log.state(1000, "Selecting keys ...");
                             if (key.isValid() && key.isReadable()) {
                                 InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
-                                if (inBuf != null) {
-                                    if (doRead(inBuf)) {
-                                        key.cancel();
-                                        channelPool.putSocketChannel(inBuf.getChannel());
-                                    }
-                                } else key.cancel();
+                                if (inBuf != null && doRead(inBuf)) {
+                                    key.cancel();
+                                    channelPool.putSocketChannel(inBuf.getChannel());
+                                }
                             }
                         } // for
                         selectedKeys.clear();
