@@ -48,7 +48,7 @@ public class MrServer {
             ThreadPoolExecutor handlerExecutor) throws IOException {
         this.bindAddress = new InetSocketAddress(address, port);
 
-        this.listener = new java.lang.Thread(new Listener()); // create listener thread
+        this.listener = new java.lang.Thread(new Listener());
         this.listener.setDaemon(false);
         
         this.handlerExecutor = handlerExecutor;
@@ -108,8 +108,12 @@ public class MrServer {
         respond(channel, callID, false, new EOR());
 
         try {
-            channel.close();
             channel.socket().close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            channel.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -149,14 +153,14 @@ public class MrServer {
     private InetSocketAddress bindAddress;
 
     /** Each server holds one thread listening to target socket address */
-    protected java.lang.Thread listener;
+    private java.lang.Thread listener;
     
     /** Denote whether this server is still running */
-    protected volatile boolean isRunning;
+    private volatile boolean isRunning;
     /** Writable factory to produce proper type of instance */
-    protected WritableWrapper writable;
+    private WritableWrapper writable;
     /** Thread pool executor to execute Handlers */
-    protected ThreadPoolExecutor handlerExecutor;
+    private ThreadPoolExecutor handlerExecutor;
     
     /** Set by Handler and retrieved by preturn() to get the connection */
     protected final InheritableThreadLocal<SocketChannel> threadChannel = 
@@ -165,15 +169,15 @@ public class MrServer {
     protected final InheritableThreadLocal<Long> threadCallID = 
         new InheritableThreadLocal<Long>();
     
-    protected Random random = new Random();
+    private Random random = new Random();
     /**
      * Save thread running states for each request 
      * according to the ordering protocol
      */
-    protected ConcurrentHashMap<Long, AtomicInteger> orders = 
+    private ConcurrentHashMap<Long, AtomicInteger> orders = 
         new ConcurrentHashMap<Long, AtomicInteger>();
     /** Method hash map */
-    protected HashMap<String, Method> procedures =
+    private HashMap<String, Method> procedures =
         new HashMap<String, Method>();
 
     protected class Thread extends java.lang.Thread {
@@ -185,7 +189,7 @@ public class MrServer {
         public void start() {
             // according to ordering protocol
             orders.get(threadCallID.get()).incrementAndGet(); // before zero-level freturn()
-            if (Log.DEBUG) Log.action("Thread .ID [+] sub-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread # [+] sub order", Thread.currentThread().getId());
             super.start();
         }
 
@@ -204,7 +208,7 @@ public class MrServer {
             runnable.run();
             // according to ordering protocol
             orders.get(threadCallID.get()).decrementAndGet(); // shrink after preturn() called
-            if (Log.DEBUG) Log.action("Thread .ID [-] sub-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread # [-] sub order", Thread.currentThread().getId());
         }
         
         private Runnable runnable;
@@ -333,7 +337,7 @@ public class MrServer {
             // Create order for the ordering protocol
             AtomicInteger order = new AtomicInteger(1);
             orders.put(callID, order);
-            if (Log.DEBUG) Log.action("Thread .ID [+] 1st-level order", Thread.currentThread().getId());
+            if (Log.DEBUG) Log.action("Thread # [+] 1st-color order", Thread.currentThread().getId());
             
             try {
                 // Invoke corresponding procedure
@@ -364,7 +368,7 @@ public class MrServer {
             } finally {
                 // Primitive according to ordering protocal
                 orders.get(callID).decrementAndGet(); // shrink after thread creation
-                if (Log.DEBUG) Log.action("Thread .ID [-] 1st-level order", Thread.currentThread().getId());
+                if (Log.DEBUG) Log.action("Thread # [-] 1st-color order", Thread.currentThread().getId());
             }
             freturn(); // final return
         }
