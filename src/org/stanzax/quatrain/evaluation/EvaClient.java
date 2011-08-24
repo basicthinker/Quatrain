@@ -69,8 +69,8 @@ public class EvaClient {
     public void testSR(String method, final int repeatCnt) throws IOException {
         if (taskTime == 0) return;
         
-        printer.print("########################################\n# ");
-        printer.println(method + " SR for Remote " + client.getRemoteSocketAddress().toString());
+        printer.print("########################################\n");
+        printer.println("# SR " + method + " for " + client.getRemoteSocketAddress().toString());
         printer.println("#  Repeat Count = " + repeatCnt);
         printer.print(getReadableConfig());
         printer.println("# Return number\tLatency\tSTDEV\tBegin time\tEnd time");

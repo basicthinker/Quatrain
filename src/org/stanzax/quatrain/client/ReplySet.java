@@ -82,21 +82,13 @@ public class ReplySet {
     public boolean putData(DataInputStream dataIn) {
         if (!timedOut) {
             try {
-                if (dataIn.available() == 0) { 
-                    // end of frame denoting final return
-                    replyQueue.add(new EOR());
-                    done = true;
-                    if (Log.DEBUG) Log.action("[ReplySet] Call # reaches reply end.", callID);
-                    return false;
-                } else {
-                    while (dataIn.available() > 0) {
-                        returnType.readFields(dataIn);
-                        replyQueue.add(returnType.getValue());
-                        if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
-                                callID, returnType.getValue());
-                    }
-                    return true;
+                while (dataIn.available() > 0) {
+                    returnType.readFields(dataIn);
+                    replyQueue.add(returnType.getValue());
+                    if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
+                            callID, returnType.getValue());
                 }
+                return true;
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -108,6 +100,12 @@ public class ReplySet {
         if (!timedOut) {
             errors.add(errorMessage);
         } else return;
+    }
+    
+    public void putEnd() {
+        replyQueue.add(new EOR());
+        done = true;
+        if (Log.DEBUG) Log.action("[ReplySet] Call # reaches reply end.", callID);
     }
     
     public void close() {

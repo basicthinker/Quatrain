@@ -157,7 +157,8 @@ public class MrClient {
         
         @Override
         public void run() {
-            Log.info("Client listener starts.");
+            if (Log.DEBUG)
+                Log.info("Client listener starts.");
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     waitPending(); // handle new registrations
@@ -194,8 +195,8 @@ public class MrClient {
             try {
                 byte[] data = inBuf.read();
                 if (data != null) {
-                    if (Log.DEBUG) Log.action("Receive reply with .length", 
-                            data.length);
+                    if (Log.DEBUG) 
+                        Log.action("Receive reply with .length", data.length);
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
                     // Read in call ID
@@ -207,9 +208,14 @@ public class MrClient {
                         Writable error = writable.newInstance(Boolean.class);
                         error.readFields(dataIn);
                         if ((Boolean)error.getValue()) {
-                            Writable errorMessage = writable.newInstance(String.class);
-                            errorMessage.readFields(dataIn);
-                            results.putError(errorMessage.getValue().toString());
+                            if (dataIn.available() == 0) {
+                                // end of frame denoting final return
+                                results.putEnd();
+                            } else {
+                                Writable errorMessage = writable.newInstance(String.class);
+                                errorMessage.readFields(dataIn);
+                                results.putError(errorMessage.getValue().toString());
+                            }
                         } else if (!results.putData(dataIn)) {
                             return true;
                         }

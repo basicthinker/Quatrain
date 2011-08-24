@@ -105,7 +105,7 @@ public class MrServer {
         while (order.get() != 0)
             Thread.yield();
         
-        respond(channel, callID, false, new EOR());
+        respond(channel, callID, true, new EOR());
 
         try {
             channel.socket().close();
