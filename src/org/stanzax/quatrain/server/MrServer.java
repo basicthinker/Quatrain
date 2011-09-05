@@ -105,7 +105,12 @@ public class MrServer {
         while (order.get() != 0)
             Thread.yield();
         
-        respond(channel, callID, true, new EOR());
+        try {
+            respond(channel, callID, true, new EOR());
+        } finally {
+            orders.remove(callID);
+            if (Log.DEBUG) Log.action("Order removed for", callID);
+        }
 
         try {
             channel.socket().close();
@@ -117,8 +122,6 @@ public class MrServer {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if (Log.DEBUG) Log.action("Order removed for", callID);
-        orders.remove(callID);
     }
     
     private void respond(SocketChannel channel,
@@ -205,10 +208,14 @@ public class MrServer {
 
         @Override
         public void run() {
-            runnable.run();
-            // according to ordering protocol
-            orders.get(threadCallID.get()).decrementAndGet(); // shrink after preturn() called
-            if (Log.DEBUG) Log.action("Thread # [-] sub order", Thread.currentThread().getId());
+            try {
+                runnable.run();
+            } finally {
+                // according to ordering protocol
+                orders.get(threadCallID.get()).decrementAndGet(); // shrink after preturn()
+                if (Log.DEBUG) Log.action("Thread # [-] sub order", 
+                        Thread.currentThread().getId());
+            }
         }
         
         private Runnable runnable;
@@ -361,8 +368,6 @@ public class MrServer {
                     }
                     Log.action("Invoked procedure", procedureName.getValue(), strParameters);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
