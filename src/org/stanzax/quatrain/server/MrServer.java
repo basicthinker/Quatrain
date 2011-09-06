@@ -115,12 +115,12 @@ public class MrServer {
         try {
             channel.socket().close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("@MrServer.freturn: in closing channel socket: " + e.getMessage());
         }
         try {
             channel.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("@MrServer.freturn: in closing channel: " + e.getMessage());
         }
     }
     
@@ -155,7 +155,7 @@ public class MrServer {
             
             if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("@MrServer.respond: " + e.getMessage());
         }
     }
     
@@ -283,8 +283,8 @@ public class MrServer {
                             selector, SelectionKey.OP_READ);
                     readKey.attach(new InputChannelBuffer(readChannel));
                 }
-            } catch (IOException ex) {
-                ex.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("@MrServer.Listener.doAccept: " + e.getMessage());
             }
         }
         
@@ -305,7 +305,7 @@ public class MrServer {
                     } 
                 } catch (IOException e) {
                     key.cancel();
-                    e.printStackTrace();
+                    System.err.println("@MrServer.Listener.doRead: " + e.getMessage());
                 }
             }
         }
@@ -331,8 +331,8 @@ public class MrServer {
             Writable rawCallID = writable.newInstance(Integer.class);
             try {
                 rawCallID.readFields(dataIn);
-            } catch (IOException ex) {
-                ex.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("@MrServer.Handler.run: while reading in call ID: " + e.getMessage());
                 return;
             }
             // Transfer original call ID to inner long type
@@ -370,7 +370,7 @@ public class MrServer {
                     Log.action("Invoked procedure", procedureName.getValue(), strParameters);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("@MrServer.Handler.run: while reading in and invoking: " + e.getMessage());
             } finally {
                 // Primitive according to ordering protocal
                 orders.get(callID).decrementAndGet(); // shrink after thread creation
