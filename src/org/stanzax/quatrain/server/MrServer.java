@@ -142,8 +142,8 @@ public class MrServer {
             writable.valueOf(error).write(dataOut);
             writable.valueOf(value).write(dataOut);
             dataOut.flush();
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("@MrServer.packData: " + e.getMessage());
             return null;
         }
         // Allocate byte buffer and insert ahead data length
@@ -279,8 +279,8 @@ public class MrServer {
                             selector, SelectionKey.OP_READ);
                     readKey.attach(new InputChannelBuffer(readChannel));
                 }
-            } catch (IOException ex) {
-                ex.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("@MrServer.Listener.doAccept: " + e.getMessage());
             }
         }
         
@@ -301,7 +301,7 @@ public class MrServer {
                     } 
                 } catch (IOException e) {
                     key.cancel();
-                    e.printStackTrace();
+                    System.err.println("@MrServer.Listener.doRead: " + e.getMessage());
                 }
             }
         }
@@ -326,8 +326,8 @@ public class MrServer {
             Writable rawCallID = writable.newInstance(Integer.class);
             try {
                 rawCallID.readFields(dataIn);
-            } catch (IOException ex) {
-                ex.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("@MrServer.Handler.run: while reading in call ID: " + e.getMessage());
                 return;
             }
             // Transfer original call ID to inner long type
@@ -368,7 +368,7 @@ public class MrServer {
                 procedure.invoke(MrServer.this, parameters);
                 
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("@MrServer.Handler.run: while reading in and invoking: " + e.getMessage());
             } finally {
                 // Primitive according to ordering protocal
                 orders.get(callID).decrementAndGet(); // shrink after thread creation
@@ -430,7 +430,7 @@ public class MrServer {
                         channel.register(selector, SelectionKey.OP_WRITE, 
                                 new OutputChannelBuffer(channel, data, isFinal));
                     } catch (ClosedChannelException e) {
-                        e.printStackTrace();
+                        System.err.println("@MrServer.Responder.register: " + e.getMessage());
                     }
                 }
             }
