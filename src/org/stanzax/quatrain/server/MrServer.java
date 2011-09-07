@@ -121,7 +121,7 @@ public class MrServer {
         while (order.get() != 0)
             Thread.yield();
         
-        ByteBuffer reply = packData(callID, false, new EOR());
+        ByteBuffer reply = packData(callID, true, new EOR());
         registrant.put(channel, reply, true);
 
         orders.remove(callID);
@@ -455,7 +455,7 @@ public class MrServer {
                         selectedKeys.clear();
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.err.println("@MrServer.Responder.run: " + e.getMessage());
                 }   
             }
         }
