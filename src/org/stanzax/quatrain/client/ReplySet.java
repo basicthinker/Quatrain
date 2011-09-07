@@ -99,7 +99,7 @@ public class ReplySet {
     
     /** 
      * Input should only contain data entries
-     * @return true if actual data are put, false otherwise
+     * @return true if all available data are put, false otherwise
     */
     public boolean putData(DataInputStream dataIn) {
         if (!timedOut) { // otherwise no additional elements would be retrieved,

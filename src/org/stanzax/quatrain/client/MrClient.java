@@ -211,6 +211,7 @@ public class MrClient {
                             if (dataIn.available() == 0) {
                                 // end of frame denoting final return
                                 results.putEnd();
+                                return true;
                             } else {
                                 Writable errorMessage = writable.newInstance(String.class);
                                 errorMessage.readFields(dataIn);

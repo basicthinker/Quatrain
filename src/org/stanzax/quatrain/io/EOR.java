@@ -41,6 +41,4 @@ public class EOR implements Writable {
     public void setValue(Object value) {
         return;
     }
-
-    private static final long serialVersionUID = 1L;
 }
