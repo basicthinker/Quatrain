@@ -93,7 +93,7 @@ public class MrServer {
         listener.start();
         registrant.start();
         responder.start();
-        Log.info("Quatrain Service Starts.");
+        Log.info("Quatrain Service Starts. This is an event-based server.");
     }
 
     public void stop() {
