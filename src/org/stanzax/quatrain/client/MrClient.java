@@ -195,8 +195,9 @@ public class MrClient {
             try {
                 byte[] data = inBuf.read();
                 if (data != null) {
-                    if (Log.DEBUG) 
+                    if (Log.DEBUG) {
                         Log.action("Receive reply with .length", data.length);
+                    }
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
                     // Read in call ID
@@ -216,18 +217,19 @@ public class MrClient {
                                 Writable errorMessage = writable.newInstance(String.class);
                                 errorMessage.readFields(dataIn);
                                 results.putError(errorMessage.getValue().toString());
+                                return false;
                             }
-                        } else if (!results.putData(dataIn)) {
-                            return true;
-                        }
-                    } else if (Log.DEBUG)
+                        } else return results.putData(dataIn);
+                    } else if (Log.DEBUG) { // reply set is null
                         Log.info("No such reply set #:", callID.getValue());
+                    }
+                } else { // data == null
+                    System.err.println("@MrClient.Listener.doRead: Selected socket channel reads in null.");
                 }
-                return false;
             } catch (Exception e) {
                 e.printStackTrace();
-                return true;
             }
+            return true;
         } // doRead
         
         /** Hold a selector waiting for reply */

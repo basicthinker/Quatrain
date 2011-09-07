@@ -99,7 +99,7 @@ public class ReplySet {
     
     /** 
      * Input should only contain data entries
-     * @return true if all available data are put, false otherwise
+     * @return true if any error happens, false otherwise.
     */
     public boolean putData(DataInputStream dataIn) {
         if (!timedOut) { // otherwise no additional elements would be retrieved,
@@ -111,12 +111,12 @@ public class ReplySet {
                     if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
                             callID, returnType.getValue());
                 }
-                return true;
+                return false;
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return false;
+        return true;
     }
     
     public synchronized void putEnd() {
