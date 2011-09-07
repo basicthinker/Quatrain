@@ -162,7 +162,7 @@ public class MrClient {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     waitPending(); // handle new registrations
-                    if (selector.select() > 0) { // non-blocking in order to go together with registration
+                    if (selector.select() > 0) {
                         Set<SelectionKey> selectedKeys = 
                             selector.selectedKeys();
                         for (SelectionKey key : selectedKeys) {
@@ -224,7 +224,8 @@ public class MrClient {
                         Log.info("No such reply set #:", callID.getValue());
                     }
                 } else { // data == null
-                    System.err.println("@MrClient.Listener.doRead: Selected socket channel reads in null.");
+                    // There does exist null reading in, which is normal
+                    return false;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
