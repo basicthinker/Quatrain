@@ -108,7 +108,7 @@ public class MrClient {
             listener.register(channel, SelectionKey.OP_READ, 
                     new InputChannelBuffer(channel));
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("@MrClient.invoke: " +  e.getMessage());
         }
         return results;
     }
@@ -178,7 +178,7 @@ public class MrClient {
                         selectedKeys.clear();
                     } else Thread.yield();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.err.println("@MrClient.Listener.run: " +  e.getMessage());
                 }
             }
             // Release occupied connection resources
@@ -228,7 +228,7 @@ public class MrClient {
                     return false;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("@MrClient.Listener.doRead: " +  e.getMessage());
             }
             return true;
         } // doRead

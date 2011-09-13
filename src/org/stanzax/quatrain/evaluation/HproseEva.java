@@ -4,8 +4,10 @@
 package org.stanzax.quatrain.evaluation;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetAddress;
 
 import org.stanzax.quatrain.client.MrClient;
@@ -51,10 +53,19 @@ public class HproseEva {
         }
         
         try {
-            String seperator = System.getProperty("file.separator");
+            StringBuilder fileName = new StringBuilder().append("log");
+            fileName.append(System.getProperty("file.separator"));
+            fileName.append("hprose-t").append(taskTime).append("-r").append(retCnt);
+            fileName.append(repeatCnt > 0 ? "-SR" : "");
+            fileName.append(dispCnt > 0 ? "-PR" : "");
+            fileName.append("-p").append(args[1]).append('@');
+            fileName.append((int)System.currentTimeMillis());
             BufferedWriter writer = new BufferedWriter(
-                    new FileWriter("log" + seperator + "HproseEva@" + System.currentTimeMillis() + ".log"));
-            EvaClient evaClient = new EvaClient(client, System.out, writer);
+                    new FileWriter(fileName.toString()));
+            
+            PrintStream printer = new PrintStream(new File("check.log"));
+            
+            EvaClient evaClient = new EvaClient(client, printer, writer);
             evaClient.setTaskTime(taskTime);
             evaClient.setReturnCount(retCnt);
             evaClient.setThreadCount(dispCnt);
@@ -66,8 +77,10 @@ public class HproseEva {
             
             if (dispCnt != 0) {
                 for (int i = 1; i <= 3; ++i) {
-                    System.out.println("\n# " + i);
+                    printer.println("\n# " + i);
+                    System.out.println("Testing SequentialExecute...(" + i + "/3)");
                     evaClient.testPR("SequentialExecute", rpsSE, sec);
+                    System.out.println("Testing ParallelExecute...(" + i + "/3)");
                     evaClient.testPR("ParallelExecute", rpsPE, sec);
                 }
             }
