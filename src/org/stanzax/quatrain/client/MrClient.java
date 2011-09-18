@@ -107,7 +107,7 @@ public class MrClient {
             channel.configureBlocking(false);
             listener.register(channel, SelectionKey.OP_READ, 
                     new InputChannelBuffer(channel));
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("@MrClient.invoke: " +  e.getMessage());
         }
         return results;
