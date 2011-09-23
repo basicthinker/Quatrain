@@ -80,8 +80,9 @@ public class MrClient {
         // Early create and register result set for awaiting reply
         ReplySet results = new ReplySet(writable.newInstance(returnType), timeout);
         results.register(callID);
+        SocketChannel channel = null;
         try {
-            SocketChannel channel = channelPool.getSocketChannel(address);
+            channel = channelPool.getSocketChannel(address);
             ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(128);
             DataOutputStream dataOut = new DataOutputStream(arrayOut);
             dataOut.writeInt(0); // occupied ahead for length
@@ -105,10 +106,19 @@ public class MrClient {
                     callID, dataLength);
             // Register for reply
             channel.configureBlocking(false);
-            listener.register(channel, SelectionKey.OP_READ, 
-                    new InputChannelBuffer(channel));
         } catch (Exception e) {
             System.err.println("@MrClient.invoke: " +  e.getMessage());
+            try {
+                channel.socket().close();
+            } catch (Exception ex) { } 
+            try {
+                channel.close();
+            } catch (Exception ex) { }
+            channel = null;
+        }
+        if (channel != null) {
+            listener.register(channel, SelectionKey.OP_READ, 
+                    new InputChannelBuffer(channel));
         }
         return results;
     }

@@ -59,7 +59,7 @@ public class HproseEva {
             fileName.append(repeatCnt > 0 ? "-SR" : "");
             fileName.append(dispCnt > 0 ? "-PR" : "");
             fileName.append("-p").append(args[1]).append('@');
-            fileName.append((int)System.currentTimeMillis());
+            fileName.append(String.valueOf(System.currentTimeMillis()).substring(4));
             BufferedWriter writer = new BufferedWriter(
                     new FileWriter(fileName.toString()));
             
