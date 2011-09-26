@@ -55,6 +55,9 @@ public class HadoopEva {
         try {
             StringBuilder fileName = new StringBuilder().append("log");
             fileName.append(System.getProperty("file.separator"));
+            if (!(new File(fileName.toString()).isDirectory())) {
+                new File(fileName.toString()).mkdir();
+            }
             fileName.append("hadoop-t").append(taskTime).append("-r").append(retCnt);
             fileName.append(repeatCnt > 0 ? "-SR" : "");
             fileName.append(dispCnt > 0 ? "-PR" : "");
