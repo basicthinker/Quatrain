@@ -93,7 +93,7 @@ public class MrServer {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        respond(channel, callID, false, value);
+        respond(channel, callID, (byte) 0, value);
     }
 
     private void freturn() {
@@ -106,7 +106,7 @@ public class MrServer {
             Thread.yield();
         
         try {
-            respond(channel, callID, true, new EOR());
+            respond(channel, callID, (byte) -1, new EOR());
         } finally {
             orders.remove(callID);
             if (Log.DEBUG) Log.action("Order removed for", callID);
@@ -125,15 +125,17 @@ public class MrServer {
     }
     
     private void respond(SocketChannel channel,
-            long callID, boolean error, Object value) {
+            long callID, byte type, Object value) {
         try {
             if (Log.DEBUG) Log.state(1, "Responder is running ...", 1);
-            // Construct reply main body (call ID + error flag + value)
+            // Prepare dynamic composition of reply
             ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(1024);
             DataOutputStream dataOut = new DataOutputStream(arrayOut);
+            // Compose reply header
             dataOut.writeInt(0); // occupied ahead for length
-            writable.valueOf((int)callID).write(dataOut); //cast long call ID to original integer type
-            writable.valueOf(error).write(dataOut);
+            dataOut.writeInt((int)callID); //cast long call ID to original int
+            dataOut.writeByte(type);
+            // Compose main body
             writable.valueOf(value).write(dataOut);
             dataOut.flush();
             // Allocate byte buffer and insert ahead data length

@@ -50,8 +50,9 @@ public class EvaClient {
     void avoidPeak(String method) {
         while (true) {
             int cnt = 0;
+            int threshold = (int)Math.max(taskTime * 1.05, taskTime + 5); 
             for (int i = 0; i < 3; ++i) {
-                if (evaInvoke(method, 1) < taskTime * 1.05)
+                if (evaInvoke(method, 1) < threshold)
                     ++cnt;
             }
             if (cnt == 3) return;

@@ -211,14 +211,12 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
                     // Read in call ID
-                    Writable callID = writable.newInstance(Integer.class);
-                    callID.readFields(dataIn);
+                    int callID = dataIn.readInt();
                     // Pass on data to corresponding result set
-                    ReplySet results = ReplySet.get((Integer)callID.getValue());
+                    ReplySet results = ReplySet.get(callID);
                     if (results != null) {
-                        Writable error = writable.newInstance(Boolean.class);
-                        error.readFields(dataIn);
-                        if ((Boolean)error.getValue()) {
+                        byte type = dataIn.readByte();
+                        if (type == -1) {
                             if (dataIn.available() == 0) {
                                 // end of frame denoting final return
                                 results.putEnd();
@@ -231,7 +229,7 @@ public class MrClient {
                             }
                         } else return results.putData(dataIn);
                     } else if (Log.DEBUG) { // reply set is null
-                        Log.info("No such reply set #:", callID.getValue());
+                        Log.info("No such reply set #:", callID);
                     }
                 } else { // data == null
                     // There does exist null reading in, which is normal

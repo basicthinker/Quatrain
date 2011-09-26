@@ -98,7 +98,7 @@ public class ReplySet {
     }
     
     /** 
-     * Input should only contain data entries
+     * Input should only provide data entries
      * @return true if any error happens, false otherwise.
     */
     public boolean putData(DataInputStream dataIn) {
