@@ -20,6 +20,12 @@ import org.stanzax.quatrain.io.ChannelWritable;
  */
 public class FileWritable implements ChannelWritable {
 
+    public FileWritable() {
+        this.BUF_LEN = 64 * 1024;
+        this.path = null;
+        this.file = null;
+    }
+    
     /**
      * @param filePath - Path of file to write, or path to store files, each of which is retrieved by {@link #getValue() getValue} 
      *                  after respective reading
@@ -28,6 +34,7 @@ public class FileWritable implements ChannelWritable {
     public FileWritable(String filePath, int bufLen) {
         this.path = filePath;
         this.BUF_LEN = bufLen;
+        this.file = null;
     }
 
     /* (non-Javadoc)
