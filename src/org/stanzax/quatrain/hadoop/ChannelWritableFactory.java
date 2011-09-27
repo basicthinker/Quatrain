@@ -17,13 +17,7 @@ import org.stanzax.quatrain.io.ChannelWritable;
 public class ChannelWritableFactory {
 
     public static ChannelWritable wrap(File file) {
-        return new FileWritable(file.getAbsolutePath(), 64 * 1024);
-    }
-    
-    public static ChannelWritable wrap(Object obj) {
-        if (obj instanceof File) {
-            return wrap((File)obj);
-        } else return null;
+        return new FileWritable(file);
     }
     
     public static ChannelWritable newInstance(

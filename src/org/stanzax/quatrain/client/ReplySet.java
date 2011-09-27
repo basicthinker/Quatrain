@@ -196,6 +196,7 @@ public abstract class ReplySet {
                     replyQueue.add(writable.getValue());
                     if (Log.DEBUG) Log.action("[ReplySet] Call # read in data and register a in-memory representative.", 
                             callID, writable.getValue());
+                    return true;
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

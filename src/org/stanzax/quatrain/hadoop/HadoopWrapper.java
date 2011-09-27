@@ -35,7 +35,7 @@ public class HadoopWrapper implements org.stanzax.quatrain.io.WritableWrapper {
         else if (classType == Character.TYPE || classType == Character.class)
             return new ByteWritable();
         else
-            throw new IllegalArgumentException("Invalid class type " + classType);
+            return new ObjectWritable();
     }
 
     /*

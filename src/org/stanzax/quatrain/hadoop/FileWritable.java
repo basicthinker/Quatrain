@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.Random;
 
 import org.stanzax.quatrain.io.ChannelWritable;
 
@@ -19,11 +20,13 @@ import org.stanzax.quatrain.io.ChannelWritable;
  * This class implements a plain binary transfer protocol for files.
  */
 public class FileWritable implements ChannelWritable {
-
+    
     public FileWritable() {
-        this.BUF_LEN = 64 * 1024;
-        this.path = null;
-        this.file = null;
+        this(null, 64 * 1024);
+    }
+    
+    public FileWritable(File file) {
+        this(file, 64 * 1024);
     }
     
     /**
@@ -31,10 +34,11 @@ public class FileWritable implements ChannelWritable {
      *                  after respective reading
      * @param bufLen - Length of byte buffer, 64 * 1024 recommended
      * */
-    public FileWritable(String filePath, int bufLen) {
-        this.path = filePath;
+    public FileWritable(File file, int bufLen) {
+        this.file = file;
         this.BUF_LEN = bufLen;
-        this.file = null;
+        File path = new File(DefaultPath);
+        if (!path.isDirectory()) path.mkdir();
     }
 
     /* (non-Javadoc)
@@ -42,11 +46,11 @@ public class FileWritable implements ChannelWritable {
      */
     @Override
     public long write(SocketChannel channel) throws IOException {
-        if (file == null) file = new File(path);
+        if (file == null) return 0;
 
         // write length of file data
         ByteBuffer replyBuffer = ByteBuffer.allocate(8);
-        replyBuffer.putLong(file.length());
+        replyBuffer.putLong(0, file.length());
         channel.write(replyBuffer);
         while (replyBuffer.hasRemaining()) {
             channel.write(replyBuffer);
@@ -77,13 +81,15 @@ public class FileWritable implements ChannelWritable {
      */
     @Override
     public long read(SocketChannel channel) throws IOException {
-        file = new File(path + "@" + System.currentTimeMillis());
+        file = new File(DefaultPath + File.separator + 
+                Math.abs(new Random().nextInt()) + "@" + System.currentTimeMillis());
         DataOutputStream ostream = new DataOutputStream(
                 new FileOutputStream(file));
         
         ByteBuffer lenBuf = ByteBuffer.allocate(8);
         channel.read(lenBuf);
         while (lenBuf.hasRemaining()) channel.read(lenBuf);
+        lenBuf.flip();
         long length = lenBuf.getLong();
         
         ByteBuffer buf = ByteBuffer.allocate(length < BUF_LEN ? (int)length : BUF_LEN);
@@ -92,6 +98,7 @@ public class FileWritable implements ChannelWritable {
             if (length - bytesRead < buf.capacity()) {
                 buf = ByteBuffer.allocate((int) (length - bytesRead));
             }
+            buf.clear();
             bytesRead += channel.read(buf);
             while (buf.hasRemaining()) {
                 Thread.yield();
@@ -113,7 +120,16 @@ public class FileWritable implements ChannelWritable {
         return file;
     }
     
-    private String path;
+    public String getDefaultPath() {
+        return DefaultPath;
+    }
+    
+    public void setDefaultPath(String path) {
+        DefaultPath = path;
+    }
+    
     private File file;
+    private static String DefaultPath = "log";
+
     public final int BUF_LEN;
 }

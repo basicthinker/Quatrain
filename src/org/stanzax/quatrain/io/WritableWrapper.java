@@ -25,10 +25,10 @@ public interface WritableWrapper {
 
     public abstract Writable valueOf(String stringValue);
 
-    public abstract Writable valueOf(Object objValue);
+    public abstract Writable valueOf(Object objValue) throws IllegalArgumentException;
 
-    public abstract Writable valueOf(Object[] listValue);
+    public abstract Writable valueOf(Object[] listValue) throws IllegalArgumentException;
 
-    public abstract Writable newInstance(Type classType);
+    public abstract Writable newInstance(Type classType) throws IllegalArgumentException;
     
 }

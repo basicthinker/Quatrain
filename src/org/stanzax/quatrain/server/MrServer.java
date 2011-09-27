@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.stanzax.quatrain.client.ReplySet;
-import org.stanzax.quatrain.hadoop.ChannelWritableFactory;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
@@ -103,7 +102,7 @@ public class MrServer {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        respond(channel, callID, (byte) ReplySet.INTERNAL, value);
+        respond(channel, callID, (byte) ReplySet.INTERNAL, wrapper.valueOf(value));
     }
 
     private void freturn() {
@@ -147,33 +146,48 @@ public class MrServer {
             dataOut.writeByte(type);
             
             assert(!channel.isBlocking());
+            int length;
+            ByteBuffer replyBuffer;
             synchronized (channel) {
                 // Compose main body
                 switch (type) {
                 case ReplySet.ERROR:
                 case ReplySet.INTERNAL:
-                    wrapper.valueOf(value).write(dataOut);
+                    ((Writable)value).write(dataOut);
                     dataOut.flush();
-                    // Allocate byte buffer and insert ahead data length
-                    int length = dataOut.size();
-                    ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
-                        0, length);
+                    // Use wrapper byte buffer to insert ahead data length
+                    length = dataOut.size();
+                    replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 0, length);
                     replyBuffer.putInt(0, length - 4);
-        
+                    // Write whole data
                     channel.write(replyBuffer);
                     while (replyBuffer.hasRemaining()) {
                         Thread.yield();
                         channel.write(replyBuffer);
                     }
-                    if (Log.DEBUG) Log.action("Reply to .callID .length", callID, length);
+                    
+                    if (Log.DEBUG) Log.action("Reply to .callID .data-length", callID, length - 4);
                     break;
                 case ReplySet.EXTERNAL:
                     dataOut.flush();
-                    long bytesWritten = ChannelWritableFactory.wrap(value).write(channel);
-                    if (Log.DEBUG) Log.action("Reply to .callID .length", callID, bytesWritten);
+                    // Use wrapper byte buffer to insert ahead data length
+                    length = dataOut.size();
+                    replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 0, length);
+                    replyBuffer.putInt(0, length - 4);
+                    // Write header
+                    channel.write(replyBuffer);
+                    while (replyBuffer.hasRemaining()) {
+                        channel.write(replyBuffer);
+                    }
+                    // Write main body
+                    long bytesWritten = ((ChannelWritable)value).write(channel);
+                    
+                    if (Log.DEBUG) Log.action("Reply to .callID .bytesWritten", 
+                            callID, bytesWritten);
                     break;
                 default:
-                    System.err.println("@MrServer.respond: Wrong value type " + value.getClass());
+                    System.err.println("@MrServer.respond: Wrong value type " +
+                            value.getClass());
                 }
             }
         } catch (IOException e) {
