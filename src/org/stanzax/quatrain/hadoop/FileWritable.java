@@ -41,7 +41,7 @@ public class FileWritable implements ChannelWritable {
      * @see org.stanzax.quatrain.io.ChannelWritable#write(java.nio.channels.SocketChannel)
      */
     @Override
-    public void write(SocketChannel channel) throws IOException {
+    public long write(SocketChannel channel) throws IOException {
         if (file == null) file = new File(path);
 
         // write length of file data
@@ -54,24 +54,29 @@ public class FileWritable implements ChannelWritable {
         // write file data
         DataInputStream istream = new DataInputStream(new FileInputStream(file));
         byte[] buf = new byte[BUF_LEN];
-        int bytesRead = istream.read(buf);
-        while (bytesRead != -1) {
-            replyBuffer = ByteBuffer.wrap(buf, 0, bytesRead);
-            channel.write(replyBuffer);
+        long bytesWritten = 0;
+        int n = istream.read(buf);
+        while (n != -1) {
+            replyBuffer = ByteBuffer.wrap(buf, 0, n);
+            bytesWritten += channel.write(replyBuffer);
             while (replyBuffer.hasRemaining()) {
                 Thread.yield();
-                channel.write(replyBuffer);
+                bytesWritten += channel.write(replyBuffer);
             }
-            bytesRead = istream.read(buf);
+            n = istream.read(buf);
         }
         istream.close();
+        if (bytesWritten != file.length()) {
+            System.err.println("@FileWritable.write: Incomplete file written.");
+        }
+        return bytesWritten;
     }
 
     /* (non-Javadoc)
      * @see org.stanzax.quatrain.io.ChannelWritable#read(java.nio.channels.SocketChannel)
      */
     @Override
-    public void read(SocketChannel channel) throws IOException {
+    public long read(SocketChannel channel) throws IOException {
         file = new File(path + "@" + System.currentTimeMillis());
         DataOutputStream ostream = new DataOutputStream(
                 new FileOutputStream(file));
@@ -95,6 +100,7 @@ public class FileWritable implements ChannelWritable {
             ostream.write(buf.array());
         }
         ostream.close();
+        return bytesRead;
     }
 
     @Override

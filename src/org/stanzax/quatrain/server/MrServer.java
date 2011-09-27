@@ -23,7 +23,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.stanzax.quatrain.client.ReplySet;
+import org.stanzax.quatrain.hadoop.ChannelWritableFactory;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
+import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
@@ -52,7 +55,7 @@ public class MrServer {
         this.listener.setDaemon(false);
         
         this.handlerExecutor = handlerExecutor;
-        this.writable = wrapper;
+        this.wrapper = wrapper;
     }
 
     public void start() {
@@ -89,11 +92,18 @@ public class MrServer {
         isRunning = false;
     }
 
+    protected void preturn(ChannelWritable value) {
+        SocketChannel channel = threadChannel.get();
+        long callID = threadCallID.get();
+        
+        respond(channel, callID, (byte) ReplySet.EXTERNAL, value);
+    }
+    
     protected void preturn(Object value) {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        respond(channel, callID, (byte) 0, value);
+        respond(channel, callID, (byte) ReplySet.INTERNAL, value);
     }
 
     private void freturn() {
@@ -106,7 +116,7 @@ public class MrServer {
             Thread.yield();
         
         try {
-            respond(channel, callID, (byte) -1, new EOR());
+            respond(channel, callID, (byte) ReplySet.ERROR, new EOR());
         } finally {
             orders.remove(callID);
             if (Log.DEBUG) Log.action("Order removed for", callID);
@@ -135,25 +145,37 @@ public class MrServer {
             dataOut.writeInt(0); // occupied ahead for length
             dataOut.writeInt((int)callID); //cast long call ID to original int
             dataOut.writeByte(type);
-            // Compose main body
-            writable.valueOf(value).write(dataOut);
-            dataOut.flush();
-            // Allocate byte buffer and insert ahead data length
-            int dataLength = dataOut.size();
-            ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
-                    0, dataLength);
-            replyBuffer.putInt(0, dataLength - 4);
             
             assert(!channel.isBlocking());
             synchronized (channel) {
-                channel.write(replyBuffer);
-                while (replyBuffer.hasRemaining()) {
-                    Thread.yield();
+                // Compose main body
+                switch (type) {
+                case ReplySet.ERROR:
+                case ReplySet.INTERNAL:
+                    wrapper.valueOf(value).write(dataOut);
+                    dataOut.flush();
+                    // Allocate byte buffer and insert ahead data length
+                    int length = dataOut.size();
+                    ByteBuffer replyBuffer = ByteBuffer.wrap(arrayOut.getByteArray(), 
+                        0, length);
+                    replyBuffer.putInt(0, length - 4);
+        
                     channel.write(replyBuffer);
+                    while (replyBuffer.hasRemaining()) {
+                        Thread.yield();
+                        channel.write(replyBuffer);
+                    }
+                    if (Log.DEBUG) Log.action("Reply to .callID .length", callID, length);
+                    break;
+                case ReplySet.EXTERNAL:
+                    dataOut.flush();
+                    long bytesWritten = ChannelWritableFactory.wrap(value).write(channel);
+                    if (Log.DEBUG) Log.action("Reply to .callID .length", callID, bytesWritten);
+                    break;
+                default:
+                    System.err.println("@MrServer.respond: Wrong value type " + value.getClass());
                 }
             }
-            
-            if (Log.DEBUG) Log.action("Reply to .callID .length", callID, dataLength);
         } catch (IOException e) {
             System.err.println("@MrServer.respond: " + e.getMessage());
         }
@@ -167,7 +189,7 @@ public class MrServer {
     /** Denote whether this server is still running */
     private volatile boolean isRunning;
     /** Writable factory to produce proper type of instance */
-    private WritableWrapper writable;
+    private WritableWrapper wrapper;
     /** Thread pool executor to execute Handlers */
     private ThreadPoolExecutor handlerExecutor;
     
@@ -328,7 +350,7 @@ public class MrServer {
                     new ByteArrayInputStream(data));
             
             // Read in integer call ID
-            Writable rawCallID = writable.newInstance(Integer.class);
+            Writable rawCallID = wrapper.newInstance(Integer.class);
             try {
                 rawCallID.readFields(dataIn);
             } catch (IOException e) {
@@ -349,7 +371,7 @@ public class MrServer {
             
             try {
                 // Invoke corresponding procedure
-                Writable procedureName = writable.newInstance(String.class);
+                Writable procedureName = wrapper.newInstance(String.class);
                 procedureName.readFields(dataIn);
                 
                 Method procedure = procedures.get(procedureName.getValue());
@@ -357,7 +379,7 @@ public class MrServer {
                 int parameterCount = parameterTypes.length;
                 Object[] parameters = new Object[parameterCount];
                 for (int i = 0; i < parameterCount; ++i) {
-                    Writable writableParameter = writable.newInstance(parameterTypes[i]);
+                    Writable writableParameter = wrapper.newInstance(parameterTypes[i]);
                     writableParameter.readFields(dataIn);
                     parameters[i] = writableParameter.getValue();
                 }

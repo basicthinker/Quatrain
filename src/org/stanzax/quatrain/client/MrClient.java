@@ -18,7 +18,9 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.stanzax.quatrain.hadoop.ChannelWritableFactory;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
+import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
@@ -62,23 +64,34 @@ public class MrClient {
     }
     
     public ReplySet invoke(Type returnType, String procedureName) {
-        return invoke(timeout, returnType, procedureName, new Object[0]);
-    }
-    
-    public ReplySet invoke(int timeout, Type returnType, String procedureName) {
-        return invoke(timeout, returnType, procedureName, new Object[0]);
+        return invoke(timeout, new ReplySet.Internal(writable.newInstance(returnType), timeout), 
+                procedureName, new Object[0]);
     }
     
     public ReplySet invoke(Type returnType, String procedureName,
             Object...parameters) {
-        return invoke(timeout, returnType, procedureName, parameters);
+        return invoke(timeout, new ReplySet.Internal(writable.newInstance(returnType), timeout),
+                procedureName, parameters);
     }
     
-    public ReplySet invoke(long timeout, Type returnType, String procedureName,
+    public ReplySet invoke(Class<? extends ChannelWritable> returnType, 
+            String procedureName) throws Exception {
+        ChannelWritable writable = ChannelWritableFactory.newInstance(returnType);
+        return invoke(timeout, new ReplySet.External(writable, timeout), 
+                procedureName, new Object[0]);
+    }
+    
+    public ReplySet invoke(Class<? extends ChannelWritable> returnType, 
+            String procedureName, Object...parameters) throws Exception {
+        ChannelWritable writable = ChannelWritableFactory.newInstance(returnType);
+        return invoke(timeout, new ReplySet.External(writable, timeout),
+                procedureName, parameters);
+    }
+    
+    private ReplySet invoke(long timeout, ReplySet results, String procedureName,
             Object...parameters) {
         int callID = counter.incrementAndGet();
         // Early create and register result set for awaiting reply
-        ReplySet results = new ReplySet(writable.newInstance(returnType), timeout);
         results.register(callID);
         SocketChannel channel = null;
         try {
@@ -211,12 +224,18 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
                     // Read in call ID
-                    int callID = dataIn.readInt();
+                    Writable callID = writable.newInstance(Integer.class);
+                    callID.readFields(dataIn);
                     // Pass on data to corresponding result set
-                    ReplySet results = ReplySet.get(callID);
+                    ReplySet results = ReplySet.get((Integer)callID.getValue());
                     if (results != null) {
                         byte type = dataIn.readByte();
-                        if (type == -1) {
+                        switch (type) {
+                        case ReplySet.INTERNAL:
+                            return !results.putData(dataIn);
+                        case ReplySet.EXTERNAL:
+                            return !results.putData(inBuf.getChannel());
+                        case ReplySet.ERROR:
                             if (dataIn.available() == 0) {
                                 // end of frame denoting final return
                                 results.putEnd();
@@ -227,9 +246,11 @@ public class MrClient {
                                 results.putError(errorMessage.getValue().toString());
                                 return false;
                             }
-                        } else return results.putData(dataIn);
+                        default:        
+                            System.err.println("@MrClient.doRead: Wrong reply type byte " + type);
+                        }
                     } else if (Log.DEBUG) { // reply set is null
-                        Log.info("No such reply set #:", callID);
+                        Log.info("No such reply set #:", callID.getValue());
                     }
                 } else { // data == null
                     // There does exist null reading in, which is normal

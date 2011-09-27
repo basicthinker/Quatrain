@@ -20,6 +20,12 @@ public class ChannelWritableFactory {
         return new FileWritable(file.getAbsolutePath(), 64 * 1024);
     }
     
+    public static ChannelWritable wrap(Object obj) {
+        if (obj instanceof File) {
+            return wrap((File)obj);
+        } else return null;
+    }
+    
     public static ChannelWritable newInstance(
             Class<? extends ChannelWritable> type) throws Exception {
         Constructor<?> constructor = ConstructorPool.get(type);

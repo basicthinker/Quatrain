@@ -19,9 +19,9 @@ public interface ChannelWritable {
     /**
      * Notice that the parameter channel is already synchronized.
      * */
-    void write(SocketChannel channel) throws IOException;
+    long write(SocketChannel channel) throws IOException;
     
-    void read(SocketChannel channel) throws IOException;
+    long read(SocketChannel channel) throws IOException;
     
     /**
      * Besides socket IO, some necessary data can be set as utility or tag.

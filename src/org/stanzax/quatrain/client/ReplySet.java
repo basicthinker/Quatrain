@@ -5,11 +5,13 @@ package org.stanzax.quatrain.client;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.nio.channels.SocketChannel;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.Writable;
@@ -17,10 +19,9 @@ import org.stanzax.quatrain.io.Writable;
 /**
  * Container of multiple returns
  */
-public class ReplySet {
+public abstract class ReplySet {
     
-    public ReplySet(Writable type, long timeout) {
-        this.returnType = type;
+    private ReplySet(long timeout) {
         this.timeout = timeout;
     }
     
@@ -33,6 +34,7 @@ public class ReplySet {
         super.finalize();
         close();
     }
+    
     /**
      * Register for awaiting reply. 
      * Invoked before sending request to guarantee no reply omitted.
@@ -97,28 +99,6 @@ public class ReplySet {
         } else return null;
     }
     
-    /** 
-     * Input should only provide data entries
-     * @return true if any error happens, false otherwise.
-    */
-    public boolean putData(DataInputStream dataIn) {
-        if (!timedOut) { // otherwise no additional elements would be retrieved,
-                         // so there would be no meaning to put in new data
-            try {
-                while (dataIn.available() > 0) {
-                    returnType.readFields(dataIn);
-                    replyQueue.add(returnType.getValue());
-                    if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
-                            callID, returnType.getValue());
-                }
-                return false;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return true;
-    }
-    
     public synchronized void putEnd() {
         replyQueue.add(new EOR());
         done = true;
@@ -144,16 +124,15 @@ public class ReplySet {
         return false;
     }
     
-    private int callID = 0;
-    private Writable returnType;
-    private long timeout;
-    private LinkedBlockingQueue<Object> replyQueue = new LinkedBlockingQueue<Object>();
+    protected int callID = 0;
+    protected long timeout;
+    protected LinkedBlockingQueue<Object> replyQueue = new LinkedBlockingQueue<Object>();
     private Object buffer = null;
     private Vector<String> errors = new Vector<String>();
     /** Indicates whether the EOR is enqueued. */
     private volatile boolean done = false;
     /** Indicates whether additional elements should be retrieved */
-    private volatile boolean timedOut = false;
+    protected volatile boolean timedOut = false;
     
     public static ReplySet get(int callID) {
         return waiting.get(callID);
@@ -161,4 +140,69 @@ public class ReplySet {
     
     private static ConcurrentHashMap<Integer, ReplySet> waiting = 
         new ConcurrentHashMap<Integer, ReplySet>();
+    
+    /**
+     * @param source - Data source, whose specific form is determined by implementation
+     * */
+    public abstract boolean putData(Object source);
+    
+    public static final int INTERNAL = 0, EXTERNAL = 1, ERROR = -1;
+    
+    public static class Internal extends ReplySet {
+        public Internal(Writable type, long timeout) {
+            super(timeout);
+            this.type = type;
+        }
+        
+        /** 
+         * Input should only contain data entries
+         * @return false if any exception happens, true otherwise.
+        */
+        public boolean putData(Object source) {
+            DataInputStream istream = (DataInputStream) source;
+            if (!timedOut) { // otherwise no additional elements would be retrieved,
+                             // so there would be no meaning to put in new data
+                try {
+                    while (istream.available() > 0) {
+                        type.readFields(istream);
+                        replyQueue.add(type.getValue());
+                        if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
+                                callID, type.getValue());
+                    }
+                    return true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return false;
+        }
+        
+        private Writable type;
+    }
+    
+    public static class External extends ReplySet {
+        
+        public External(ChannelWritable writable, long timeout) {
+            super(timeout);
+            this.writable = writable;
+        }
+        
+        @Override
+        public boolean putData(Object source) {
+            SocketChannel channel = (SocketChannel)source;
+            if (!timedOut) {
+                try {
+                    writable.read(channel);
+                    replyQueue.add(writable.getValue());
+                    if (Log.DEBUG) Log.action("[ReplySet] Call # read in data and register a in-memory representative.", 
+                            callID, writable.getValue());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return false;
+        }
+        
+        private ChannelWritable writable;
+    }
 }
