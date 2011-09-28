@@ -18,7 +18,6 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.stanzax.quatrain.hadoop.ChannelWritableFactory;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
@@ -74,16 +73,14 @@ public class MrClient {
                 procedureName, parameters);
     }
     
-    public ReplySet invoke(Class<? extends ChannelWritable> returnType, 
+    public ReplySet invoke(ChannelWritable writable, 
             String procedureName) throws Exception {
-        ChannelWritable writable = ChannelWritableFactory.newInstance(returnType);
         return invoke(timeout, new ReplySet.External(writable, timeout), 
                 procedureName, new Object[0]);
     }
     
-    public ReplySet invoke(Class<? extends ChannelWritable> returnType, 
+    public ReplySet invoke(ChannelWritable writable, 
             String procedureName, Object...parameters) throws Exception {
-        ChannelWritable writable = ChannelWritableFactory.newInstance(returnType);
         return invoke(timeout, new ReplySet.External(writable, timeout),
                 procedureName, parameters);
     }

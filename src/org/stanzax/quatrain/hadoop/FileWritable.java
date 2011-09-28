@@ -21,10 +21,6 @@ import org.stanzax.quatrain.io.ChannelWritable;
  */
 public class FileWritable implements ChannelWritable {
     
-    public FileWritable() {
-        this(null, 64 * 1024);
-    }
-    
     public FileWritable(File file) {
         this(file, 64 * 1024);
     }
@@ -37,8 +33,6 @@ public class FileWritable implements ChannelWritable {
     public FileWritable(File file, int bufLen) {
         this.file = file;
         this.BUF_LEN = bufLen;
-        File path = new File(DefaultPath);
-        if (!path.isDirectory()) path.mkdir();
     }
 
     /* (non-Javadoc)
@@ -81,8 +75,13 @@ public class FileWritable implements ChannelWritable {
      */
     @Override
     public long read(SocketChannel channel) throws IOException {
-        file = new File(DefaultPath + File.separator + 
-                Math.abs(new Random().nextInt()) + "@" + System.currentTimeMillis());
+        if (file.isDirectory()) {
+            file = new File(file.getPath() + File.separator + 
+                    Math.abs(new Random().nextInt()) + "@" + System.currentTimeMillis());
+        } else {
+            file = new File(file.getParent() + File.separator + 
+                    Math.abs(new Random().nextInt()) + "@" + System.currentTimeMillis());
+        }
         DataOutputStream ostream = new DataOutputStream(
                 new FileOutputStream(file));
         
@@ -120,16 +119,6 @@ public class FileWritable implements ChannelWritable {
         return file;
     }
     
-    public String getDefaultPath() {
-        return DefaultPath;
-    }
-    
-    public void setDefaultPath(String path) {
-        DefaultPath = path;
-    }
-    
     private File file;
-    private static String DefaultPath = "log";
-
     public final int BUF_LEN;
 }

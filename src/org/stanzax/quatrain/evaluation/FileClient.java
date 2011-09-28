@@ -5,7 +5,6 @@ package org.stanzax.quatrain.evaluation;
 
 import java.io.File;
 import java.net.InetAddress;
-
 import org.stanzax.quatrain.client.MrClient;
 import org.stanzax.quatrain.client.ReplySet;
 import org.stanzax.quatrain.hadoop.FileWritable;
@@ -32,7 +31,10 @@ public class FileClient {
             MrClient client = new MrClient(InetAddress.getByName(args[0]),
                     Integer.valueOf(args[1]), new HadoopWrapper(), Integer.valueOf(args[2]));
             
-            ReplySet rs = client.invoke(FileWritable.class, "FetchDirFiles", args[3]);
+            File dir = new File("log");
+            if (!dir.isDirectory()) dir.mkdir();
+            FileWritable writable = new FileWritable(dir);
+            ReplySet rs = client.invoke(writable, "FetchDirFiles", args[3]);
             while (rs.hasMore()) {
                 File file = (File)rs.nextElement();
                 System.out.println("Fetched " + file.getName());

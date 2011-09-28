@@ -4,6 +4,6 @@
 	<classpathentry kind="lib" path="lib/hadoop-common-0.21.0.jar"/>
 	<classpathentry kind="lib" path="lib/commons-logging-1.0.4.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/home/basicthinker/Downloads/hprose.jar"/>
+	<classpathentry kind="lib" path="/Users/stone/Documents/hprose.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
