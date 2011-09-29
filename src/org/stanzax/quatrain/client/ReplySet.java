@@ -11,10 +11,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
-import org.stanzax.quatrain.io.Writable;
 
 /**
  * Container of multiple returns
@@ -149,9 +151,10 @@ public abstract class ReplySet {
     public static final int INTERNAL = 0, EXTERNAL = 1, ERROR = -1;
     
     public static class Internal extends ReplySet {
-        public Internal(Writable type, long timeout) {
+        public Internal(Class<? extends Writable> type, long timeout, Configuration conf) {
             super(timeout);
             this.type = type;
+            this.conf = conf;
         }
         
         /** 
@@ -164,10 +167,11 @@ public abstract class ReplySet {
                              // so there would be no meaning to put in new data
                 try {
                     while (istream.available() > 0) {
-                        type.readFields(istream);
-                        replyQueue.add(type.getValue());
+                    	Writable writable = ReflectionUtils.newInstance(type, conf);
+                        writable.readFields(istream);
+                        replyQueue.add(writable);
                         if (Log.DEBUG) Log.action("[ReplySet] Call # read in data.", 
-                                callID, type.getValue());
+                                callID, writable);
                     }
                     return true;
                 } catch (IOException e) {
@@ -177,7 +181,8 @@ public abstract class ReplySet {
             return false;
         }
         
-        private Writable type;
+        private Class<? extends Writable> type;
+        private Configuration conf;
     }
     
     public static class External extends ReplySet {

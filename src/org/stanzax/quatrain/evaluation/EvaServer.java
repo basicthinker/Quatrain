@@ -6,7 +6,10 @@ package org.stanzax.quatrain.evaluation;
 import java.io.IOException;
 import java.util.concurrent.ThreadPoolExecutor;
 
-import org.stanzax.quatrain.io.WritableWrapper;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.stanzax.quatrain.io.Array;
 import org.stanzax.quatrain.server.MrServer;
 
 /**
@@ -15,37 +18,41 @@ import org.stanzax.quatrain.server.MrServer;
  */
 public class EvaServer extends MrServer {
 
-    public EvaServer(String address, int port, WritableWrapper wrapper,
-            int handlerCount) throws IOException {
-        super(address, port, wrapper, handlerCount);
+    public EvaServer(String address, int port, int handlerCount, Configuration conf)
+    		throws IOException {
+        super(address, port, handlerCount, conf);
     }
 
-    public EvaServer(String address, int port, WritableWrapper wrapper,
-            ThreadPoolExecutor handlerExecutor) throws IOException {
-        super(address, port, wrapper, handlerExecutor);
+    public EvaServer(String address, int port, 
+    		ThreadPoolExecutor handlerExecutor, Configuration conf) throws IOException {
+        super(address, port, handlerExecutor, conf);
     }
 
-    public void SequentialExecute(int total, int divider) {
-        for (int i = 0; i < divider; ++i) {
-            int each = total / divider + (i < total % divider ? 1 : 0);
-            Double[] replies = new Double[each];
+    public void SequentialExecute(IntWritable overall, IntWritable divider) {
+    	int total = overall.get();
+    	int div = divider.get();
+        for (int i = 0; i < div; ++i) {
+            int each = total / div + (i < total % div ? 1 : 0);
+            DoubleWritable[] replies = new DoubleWritable[each];
             for (int j = 0; j < each; ++j) 
-                replies[j] = Math.PI;
+                replies[j] = new DoubleWritable(Math.PI);
             try {
                 Thread.sleep(each);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            preturn(replies);        
+            preturn(new Array(DoubleWritable.class, replies));        
         }
     }
     
-    public void ParallelExecute(int total, int divider) {
-        for (int i = 0; i < divider; ++i) {
-            final int each = total / divider + (i < total % divider ? 1 : 0);
-            final Double[] replies = new Double[each];
+    public void ParallelExecute(IntWritable overall, IntWritable divider) {
+    	int total = overall.get();
+    	int div = divider.get();
+        for (int i = 0; i < div; ++i) {
+            final int each = total / div + (i < total % div ? 1 : 0);
+            final DoubleWritable[] replies = new DoubleWritable[each];
             for (int j = 0; j < each; ++j)
-                replies[j] = Math.PI;
+                replies[j] = new DoubleWritable(Math.PI);
             
             new Thread(new Runnable() {
                 public void run() {
@@ -54,7 +61,7 @@ public class EvaServer extends MrServer {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    preturn(replies);
+                    preturn(new Array(DoubleWritable.class, replies));
                 }
             }).start();
         }

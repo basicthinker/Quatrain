@@ -1,7 +1,7 @@
 /**
  * 
  */
-package org.stanzax.quatrain.hadoop;
+package org.stanzax.quatrain.io;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -13,7 +13,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Random;
 
-import org.stanzax.quatrain.io.ChannelWritable;
 
 /**
  * @author Jinglei Ren

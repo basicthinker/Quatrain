@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.stanzax.quatrain.client.MrClient;
 import org.stanzax.quatrain.client.ReplySet;
 
@@ -169,15 +172,16 @@ public class EvaClient {
         int count = 0;
         double costTime = 0;
         long callTime = System.currentTimeMillis(); // accurate begin time of call
-        ReplySet returns = client.invoke(Double.class, method, taskTime, retCnt);
+        ReplySet returns = client.invoke(DoubleWritable.class, method,
+        		new IntWritable(taskTime), new IntWritable(retCnt));
 
-        Double returnValue = (Double) returns.nextElement();
+        DoubleWritable returnValue = (DoubleWritable) returns.nextElement();
         while (returnValue != null) {
-            if (returnValue != Math.PI) 
+            if (returnValue.get() != Math.PI) 
                 printer.println("WRONG REPLY : " + returnValue);
             ++count;
             costTime += System.currentTimeMillis() - callTime; // sum each reply latency
-            returnValue = (Double) returns.nextElement();
+            returnValue = (DoubleWritable) returns.nextElement();
         }
         returns.close();
         if (count != taskTime) { // expected number of replyQueue equals taskTime

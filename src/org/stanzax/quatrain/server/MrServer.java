@@ -23,14 +23,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.stanzax.quatrain.client.ReplySet;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
-import org.stanzax.quatrain.io.Writable;
-import org.stanzax.quatrain.io.WritableWrapper;
+
 
 /**
  * @author basicthinker
@@ -38,23 +42,23 @@ import org.stanzax.quatrain.io.WritableWrapper;
  */
 public class MrServer {
 
-    public MrServer(String address, int port, WritableWrapper wrapper,
-            int handlerCount) throws IOException {
-        this(address, port, wrapper, new ThreadPoolExecutor(
+    public MrServer(String address, int port, int handlerCount, Configuration conf)
+    		throws IOException {
+        this(address, port, new ThreadPoolExecutor(
                 handlerCount, 2 * handlerCount, 6, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>()));
+                new LinkedBlockingQueue<Runnable>()), conf);
     }
     
     /** User can configure server by providing refined thread pool executors. */
-    public MrServer(String address, int port, WritableWrapper wrapper,
-            ThreadPoolExecutor handlerExecutor) throws IOException {
+    public MrServer(String address, int port, ThreadPoolExecutor handlerExecutor,
+    		Configuration conf) throws IOException {
         this.bindAddress = new InetSocketAddress(address, port);
 
         this.listener = new java.lang.Thread(new Listener());
         this.listener.setDaemon(false);
         
         this.handlerExecutor = handlerExecutor;
-        this.wrapper = wrapper;
+        this.conf = conf;
     }
 
     public void start() {
@@ -98,11 +102,11 @@ public class MrServer {
         respond(channel, callID, (byte) ReplySet.EXTERNAL, value);
     }
     
-    protected void preturn(Object value) {
+    protected void preturn(Writable value) {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
-        respond(channel, callID, (byte) ReplySet.INTERNAL, wrapper.valueOf(value));
+        respond(channel, callID, (byte) ReplySet.INTERNAL, value);
     }
 
     private void freturn() {
@@ -202,8 +206,6 @@ public class MrServer {
     
     /** Denote whether this server is still running */
     private volatile boolean isRunning;
-    /** Writable factory to produce proper type of instance */
-    private WritableWrapper wrapper;
     /** Thread pool executor to execute Handlers */
     private ThreadPoolExecutor handlerExecutor;
     
@@ -225,6 +227,8 @@ public class MrServer {
     private HashMap<String, Method> procedures =
         new HashMap<String, Method>();
 
+    private Configuration conf;
+    
     protected class Thread extends java.lang.Thread {
 
         public Thread(Runnable target) {
@@ -364,7 +368,7 @@ public class MrServer {
                     new ByteArrayInputStream(data));
             
             // Read in integer call ID
-            Writable rawCallID = wrapper.newInstance(Integer.class);
+            IntWritable rawCallID = new IntWritable();
             try {
                 rawCallID.readFields(dataIn);
             } catch (IOException e) {
@@ -373,7 +377,7 @@ public class MrServer {
             }
             // Transfer original call ID to inner long type
             long callID = random.nextInt();
-            callID = (callID << 32) + (Integer)rawCallID.getValue();
+            callID = (callID << 32) + rawCallID.get();
             // Set thread locals before creating method threads
             threadCallID.set(callID);
             threadChannel.set(channel);
@@ -385,17 +389,17 @@ public class MrServer {
             
             try {
                 // Invoke corresponding procedure
-                Writable procedureName = wrapper.newInstance(String.class);
+                Writable procedureName = new Text();
                 procedureName.readFields(dataIn);
                 
-                Method procedure = procedures.get(procedureName.getValue());
+                Method procedure = procedures.get(procedureName.toString());
                 Class<?>[] parameterTypes = procedure.getParameterTypes();
                 int parameterCount = parameterTypes.length;
                 Object[] parameters = new Object[parameterCount];
                 for (int i = 0; i < parameterCount; ++i) {
-                    Writable writableParameter = wrapper.newInstance(parameterTypes[i]);
-                    writableParameter.readFields(dataIn);
-                    parameters[i] = writableParameter.getValue();
+                    Writable writable = (Writable) ReflectionUtils.newInstance(parameterTypes[i], conf);
+                    writable.readFields(dataIn);
+                    parameters[i] = writable;
                 }
                 procedure.invoke(MrServer.this, parameters);
                 if (Log.DEBUG) {
@@ -403,7 +407,7 @@ public class MrServer {
                     for (Object p : parameters) {
                         strParameters.append("{").append(p).append("}");
                     }
-                    Log.action("Invoked procedure", procedureName.getValue(), strParameters);
+                    Log.action("Invoked procedure", procedureName.toString(), strParameters);
                 }
             } catch (Exception e) {
                 System.err.println("@MrServer.Handler.run: while reading in and invoking: " + e.getMessage());

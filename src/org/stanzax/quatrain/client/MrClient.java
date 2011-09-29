@@ -7,7 +7,6 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -18,13 +17,15 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
 import org.stanzax.quatrain.io.ChannelWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
-import org.stanzax.quatrain.io.Writable;
-import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
  * @author basicthinker
@@ -32,15 +33,14 @@ import org.stanzax.quatrain.io.WritableWrapper;
  */
 public class MrClient {
 
-    public MrClient(InetAddress host, int port, WritableWrapper wrapper, long timeout) 
+    public MrClient(InetAddress host, int port, long timeout, Configuration conf) 
     throws IOException {
-        this(new InetSocketAddress(host, port), wrapper, timeout);
+        this(new InetSocketAddress(host, port), timeout);
     }
     
-    public MrClient(InetSocketAddress address, WritableWrapper wrapper, long timeout) 
+    public MrClient(InetSocketAddress address, long timeout) 
     throws IOException {
         this.address = address;
-        this.writable = wrapper;
         this.timeout = timeout;
         
         listener  = new Listener();
@@ -62,31 +62,31 @@ public class MrClient {
         return this.address;
     }
     
-    public ReplySet invoke(Type returnType, String procedureName) {
-        return invoke(timeout, new ReplySet.Internal(writable.newInstance(returnType), timeout), 
-                procedureName, new Object[0]);
+    public ReplySet invoke(Class<? extends Writable> returnType, String procedureName) {
+        return invoke(timeout, new ReplySet.Internal(returnType, timeout, conf), 
+                procedureName, new Writable[0]);
     }
     
-    public ReplySet invoke(Type returnType, String procedureName,
-            Object...parameters) {
-        return invoke(timeout, new ReplySet.Internal(writable.newInstance(returnType), timeout),
+    public ReplySet invoke(Class<? extends Writable> returnType, String procedureName,
+            Writable...parameters) {
+        return invoke(timeout, new ReplySet.Internal(returnType, timeout, conf),
                 procedureName, parameters);
     }
     
     public ReplySet invoke(ChannelWritable writable, 
             String procedureName) throws Exception {
         return invoke(timeout, new ReplySet.External(writable, timeout), 
-                procedureName, new Object[0]);
+                procedureName, new Writable[0]);
     }
     
     public ReplySet invoke(ChannelWritable writable, 
-            String procedureName, Object...parameters) throws Exception {
+            String procedureName, Writable...parameters) throws Exception {
         return invoke(timeout, new ReplySet.External(writable, timeout),
                 procedureName, parameters);
     }
     
     private ReplySet invoke(long timeout, ReplySet results, String procedureName,
-            Object...parameters) {
+            Writable...parameters) {
         int callID = counter.incrementAndGet();
         // Early create and register result set for awaiting reply
         results.register(callID);
@@ -96,10 +96,10 @@ public class MrClient {
             ByteArrayOutputStream arrayOut = new ByteArrayOutputStream(128);
             DataOutputStream dataOut = new DataOutputStream(arrayOut);
             dataOut.writeInt(0); // occupied ahead for length
-            writable.valueOf(callID).write(dataOut); //write call ID
-            writable.valueOf(procedureName).write(dataOut); //write the procedure name
-            for (Object parameter : parameters) { //write procedure parameters
-                writable.valueOf(parameter).write(dataOut);
+            new IntWritable(callID).write(dataOut); //write call ID
+            new Text(procedureName).write(dataOut); //write the procedure name
+            for (Writable parameter : parameters) { //write procedure parameters
+                parameter.write(dataOut);
             }
             dataOut.flush();
             // Allocate byte buffer and insert ahead data length
@@ -135,11 +135,11 @@ public class MrClient {
 
     /** Hold a socket address of the target server */
     private InetSocketAddress address;
-    private WritableWrapper writable;
     /** Max time in millisecond to wait for a return */
     private long timeout;
     /** Hold a Listener thread waiting for reply */
     private Listener listener;
+    private Configuration conf;
     
     /** Static call ID counter */
     private static AtomicInteger counter = new AtomicInteger();
@@ -221,10 +221,10 @@ public class MrClient {
                     DataInputStream dataIn = new DataInputStream(
                             new ByteArrayInputStream(data));
                     // Read in call ID
-                    Writable callID = writable.newInstance(Integer.class);
+                    IntWritable callID = new IntWritable();
                     callID.readFields(dataIn);
                     // Pass on data to corresponding result set
-                    ReplySet results = ReplySet.get((Integer)callID.getValue());
+                    ReplySet results = ReplySet.get(callID.get());
                     if (results != null) {
                         byte type = dataIn.readByte();
                         switch (type) {
@@ -238,16 +238,16 @@ public class MrClient {
                                 results.putEnd();
                                 return true;
                             } else {
-                                Writable errorMessage = writable.newInstance(String.class);
+                                Text errorMessage = new Text();
                                 errorMessage.readFields(dataIn);
-                                results.putError(errorMessage.getValue().toString());
+                                results.putError(errorMessage.toString());
                                 return false;
                             }
                         default:        
                             System.err.println("@MrClient.doRead: Wrong reply type byte " + type);
                         }
                     } else if (Log.DEBUG) { // reply set is null
-                        Log.info("No such reply set #:", callID.getValue());
+                        Log.info("No such reply set #:", callID.get());
                     }
                 } else { // data == null
                     // There does exist null reading in, which is normal

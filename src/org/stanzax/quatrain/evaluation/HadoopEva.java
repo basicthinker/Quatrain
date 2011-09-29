@@ -11,7 +11,6 @@ import java.io.PrintStream;
 import java.net.InetAddress;
 
 import org.stanzax.quatrain.client.MrClient;
-import org.stanzax.quatrain.hadoop.HadoopWrapper;
 import org.stanzax.quatrain.io.Log;
 
 /**
@@ -46,7 +45,7 @@ public class HadoopEva {
         MrClient client;
         try {
             client = new MrClient(InetAddress.getByName(args[0]),
-                    Integer.valueOf(args[1]), new HadoopWrapper(), taskTime * 100);
+                    Integer.valueOf(args[1]), taskTime * 100, null);
         } catch (Exception e) {
             e.printStackTrace();
             return;

@@ -5,10 +5,7 @@ package org.stanzax.quatrain.evaluation;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadPoolExecutor;
-
-import org.stanzax.quatrain.hadoop.HadoopWrapper;
 import org.stanzax.quatrain.io.Log;
-import org.stanzax.quatrain.io.WritableWrapper;
 
 /**
  * @author basicthinker
@@ -24,7 +21,7 @@ public class HadoopServer extends EvaServer {
      */
     public HadoopServer(String address, int port, 
             int handlerCount) throws IOException {
-        super(address, port, new HadoopWrapper(), handlerCount);
+        super(address, port, handlerCount, null);
     }
 
     /**
@@ -34,9 +31,9 @@ public class HadoopServer extends EvaServer {
      * @param handlerExecutor
      * @throws IOException
      */
-    public HadoopServer(String address, int port, WritableWrapper wrapper,
+    public HadoopServer(String address, int port,
             ThreadPoolExecutor handlerExecutor) throws IOException {
-        super(address, port, wrapper, handlerExecutor);
+        super(address, port, handlerExecutor, null);
     }
     
     /**

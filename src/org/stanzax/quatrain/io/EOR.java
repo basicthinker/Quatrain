@@ -3,9 +3,11 @@
  */
 package org.stanzax.quatrain.io;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
+
+import org.apache.hadoop.io.Writable;
 
 /**
  * @author basicthinker
@@ -13,32 +15,13 @@ import java.io.IOException;
  */
 public class EOR implements Writable {
 
-    /* (non-Javadoc)
-     * @see org.stanzax.quatrain.io.Writable#getValue()
-     */
-    @Override
-    public Object getValue() {
-        return null;
-    }
+	@Override
+	public void write(DataOutput out) throws IOException {
+		return;
+	}
 
-    /* (non-Javadoc)
-     * @see org.stanzax.quatrain.io.Writable#readFields(java.io.DataInput)
-     */
-    @Override
-    public void readFields(DataInputStream in) throws IOException {
-        return;
-    }
-
-    /* (non-Javadoc)
-     * @see org.stanzax.quatrain.io.Writable#write(java.io.DataOutput)
-     */
-    @Override
-    public void write(DataOutputStream out) throws IOException {
-        return;
-    }
-
-    @Override
-    public void setValue(Object value) {
-        return;
-    }
+	@Override
+	public void readFields(DataInput in) throws IOException {
+		return;
+	}
 }
