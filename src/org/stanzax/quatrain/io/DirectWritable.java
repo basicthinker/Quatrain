@@ -3,9 +3,9 @@
  */
 package org.stanzax.quatrain.io;
 
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.channels.SocketChannel;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * @author Jinglei Ren
@@ -14,14 +14,14 @@ import java.nio.channels.SocketChannel;
  * so that writing/reading DataOutputStream/DataInputStream(in memory) is impractical.
  * For example, file transfer protocol is suitable to under this interface.
  */
-public interface ChannelWritable {
+public interface DirectWritable {
 
     /**
      * Notice that the parameter channel is already synchronized.
      * */
-    long write(SocketChannel channel) throws IOException;
+    long write(OutputStream ostream) throws IOException;
     
-    long read(SocketChannel channel) throws IOException;
+    long read(InputStream istream) throws IOException;
     
     /**
      * Besides socket IO, some necessary data can be set as utility or tag.
@@ -30,7 +30,7 @@ public interface ChannelWritable {
     
     /**
      * Besides socket IO, this interface provides the method to retrieve some extra data.
-     * The returned value is put into ReplySet after each invocation of {@link #read(DataInputStream)}.
+     * The returned value is put into ReplySet after each invocation of {@link #read(InputStream)}.
      * */
     Object getValue();
     

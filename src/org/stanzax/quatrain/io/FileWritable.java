@@ -9,8 +9,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Random;
 
 
@@ -18,7 +18,7 @@ import java.util.Random;
  * @author Jinglei Ren
  * This class implements a plain binary transfer protocol for files.
  */
-public class FileWritable implements ChannelWritable {
+public class FileWritable implements DirectWritable {
     
     public FileWritable(File file) {
         this(file, 64 * 1024);
@@ -35,45 +35,40 @@ public class FileWritable implements ChannelWritable {
     }
 
     /* (non-Javadoc)
-     * @see org.stanzax.quatrain.io.ChannelWritable#write(java.nio.channels.SocketChannel)
+     * @see org.stanzax.quatrain.io.DirectWritable#write(java.nio.channels.SocketChannel)
      */
     @Override
-    public long write(SocketChannel channel) throws IOException {
+    public long write(OutputStream ostream) throws IOException {
         if (file == null) return 0;
-
+        long length = file.length();
+        
         // write length of file data
-        ByteBuffer replyBuffer = ByteBuffer.allocate(8);
-        replyBuffer.putLong(0, file.length());
-        channel.write(replyBuffer);
-        while (replyBuffer.hasRemaining()) {
-            channel.write(replyBuffer);
-        }
+        DataOutputStream dstream = new DataOutputStream(ostream);
+        dstream.writeLong(length);
+
         // write file data
-        DataInputStream istream = new DataInputStream(new FileInputStream(file));
-        byte[] buf = new byte[BUF_LEN];
+        DataInputStream fstream = new DataInputStream(new FileInputStream(file));
+        byte[] buf = new byte[length < BUF_LEN ? (int)length : BUF_LEN];
         long bytesWritten = 0;
-        int n = istream.read(buf);
-        while (n != -1) {
-            replyBuffer = ByteBuffer.wrap(buf, 0, n);
-            bytesWritten += channel.write(replyBuffer);
-            while (replyBuffer.hasRemaining()) {
-                Thread.yield();
-                bytesWritten += channel.write(replyBuffer);
-            }
-            n = istream.read(buf);
+        int n = fstream.read(buf);
+        while (n != -1) { 
+            ostream.write(buf, 0, n);
+            bytesWritten += n;
+            n = fstream.read(buf);
         }
-        istream.close();
-        if (bytesWritten != file.length()) {
+        fstream.close();
+        
+        if (bytesWritten != length) {
             System.err.println("@FileWritable.write: Incomplete file written.");
         }
         return bytesWritten;
     }
 
     /* (non-Javadoc)
-     * @see org.stanzax.quatrain.io.ChannelWritable#read(java.nio.channels.SocketChannel)
+     * @see org.stanzax.quatrain.io.DirectWritable#read(java.nio.channels.SocketChannel)
      */
     @Override
-    public long read(SocketChannel channel) throws IOException {
+    public long read(InputStream istream) throws IOException {
         if (file.isDirectory()) {
             file = new File(file.getPath() + File.separator + 
                     Math.abs(new Random().nextInt()) + "@" + System.currentTimeMillis());
@@ -84,28 +79,19 @@ public class FileWritable implements ChannelWritable {
         DataOutputStream ostream = new DataOutputStream(
                 new FileOutputStream(file));
         
-        ByteBuffer lenBuf = ByteBuffer.allocate(8);
-        channel.read(lenBuf);
-        while (lenBuf.hasRemaining()) channel.read(lenBuf);
-        lenBuf.flip();
-        long length = lenBuf.getLong();
+        DataInputStream dstream = new DataInputStream(istream);
+        final long length = dstream.readLong();
         
-        ByteBuffer buf = ByteBuffer.allocate(length < BUF_LEN ? (int)length : BUF_LEN);
-        int bytesRead = 0;
-        while (bytesRead < length) {
-            if (length - bytesRead < buf.capacity()) {
-                buf = ByteBuffer.allocate((int) (length - bytesRead));
-            }
-            buf.clear();
-            bytesRead += channel.read(buf);
-            while (buf.hasRemaining()) {
-                Thread.yield();
-                bytesRead += channel.read(buf); 
-            }
-            ostream.write(buf.array());
+        byte[] buf = new byte[length < BUF_LEN ? (int)length : BUF_LEN];
+        long balance = length;
+        int n = 0;
+        while (balance > 0) {
+            n = istream.read(buf, 0, balance < BUF_LEN ? (int)balance : BUF_LEN);
+            balance -= n;
+            ostream.write(buf, 0, n);
         }
         ostream.close();
-        return bytesRead;
+        return length;
     }
 
     @Override

@@ -22,7 +22,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
-import org.stanzax.quatrain.io.ChannelWritable;
+import org.stanzax.quatrain.io.DirectWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.Log;
 import org.stanzax.quatrain.io.SocketChannelPool;
@@ -73,13 +73,13 @@ public class MrClient {
                 procedureName, parameters);
     }
     
-    public ReplySet invoke(ChannelWritable writable, 
+    public ReplySet invoke(DirectWritable writable, 
             String procedureName) throws Exception {
         return invoke(timeout, new ReplySet.External(writable, timeout), 
                 procedureName, new Writable[0]);
     }
     
-    public ReplySet invoke(ChannelWritable writable, 
+    public ReplySet invoke(DirectWritable writable, 
             String procedureName, Writable...parameters) throws Exception {
         return invoke(timeout, new ReplySet.External(writable, timeout),
                 procedureName, parameters);
@@ -254,7 +254,8 @@ public class MrClient {
                     return false;
                 }
             } catch (Exception e) {
-                System.err.println("@MrClient.Listener.doRead: " +  e.getMessage());
+                System.err.println("@MrClient.Listener.doRead: " + e.toString() +
+                        " : " + e.getMessage());
             }
             return true;
         } // doRead

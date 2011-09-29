@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.stanzax.quatrain.io.ChannelWritable;
+import org.stanzax.quatrain.io.ChannelInputStream;
+import org.stanzax.quatrain.io.DirectWritable;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
 
@@ -187,7 +188,7 @@ public abstract class ReplySet {
     
     public static class External extends ReplySet {
         
-        public External(ChannelWritable writable, long timeout) {
+        public External(DirectWritable writable, long timeout) {
             super(timeout);
             this.writable = writable;
         }
@@ -197,7 +198,7 @@ public abstract class ReplySet {
             SocketChannel channel = (SocketChannel)source;
             if (!timedOut) {
                 try {
-                    writable.read(channel);
+                    writable.read(new ChannelInputStream(channel));
                     replyQueue.add(writable.getValue());
                     if (Log.DEBUG) Log.action("[ReplySet] Call # read in data and register a in-memory representative.", 
                             callID, writable.getValue());
@@ -209,6 +210,6 @@ public abstract class ReplySet {
             return false;
         }
         
-        private ChannelWritable writable;
+        private DirectWritable writable;
     }
 }

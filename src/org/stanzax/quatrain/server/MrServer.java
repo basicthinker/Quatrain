@@ -30,7 +30,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.stanzax.quatrain.client.ReplySet;
 import org.stanzax.quatrain.io.ByteArrayOutputStream;
-import org.stanzax.quatrain.io.ChannelWritable;
+import org.stanzax.quatrain.io.DirectWritable;
 import org.stanzax.quatrain.io.InputChannelBuffer;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
@@ -95,7 +95,7 @@ public class MrServer {
         isRunning = false;
     }
 
-    protected void preturn(ChannelWritable value) {
+    protected void preturn(DirectWritable value) {
         SocketChannel channel = threadChannel.get();
         long callID = threadCallID.get();
         
@@ -184,7 +184,9 @@ public class MrServer {
                         channel.write(replyBuffer);
                     }
                     // Write main body
-                    long bytesWritten = ((ChannelWritable)value).write(channel);
+                    channel.configureBlocking(true);
+                    long bytesWritten = ((DirectWritable)value).write(
+                            channel.socket().getOutputStream());
                     
                     if (Log.DEBUG) Log.action("Reply to .callID .bytesWritten", 
                             callID, bytesWritten);

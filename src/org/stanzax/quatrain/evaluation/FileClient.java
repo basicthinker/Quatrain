@@ -29,18 +29,33 @@ public class FileClient {
     public static void main(String[] args) {
         Log.setDebug(Integer.valueOf(args[4]));
         try {
-            MrClient client = new MrClient(InetAddress.getByName(args[0]),
+            final String target = args[3];
+            final MrClient client = new MrClient(InetAddress.getByName(args[0]),
                     Integer.valueOf(args[1]), Integer.valueOf(args[2]), null);
             
-            File dir = new File("log");
+            final File dir = new File("log");
             if (!dir.isDirectory()) dir.mkdir();
-            FileWritable writable = new FileWritable(dir);
-            ReplySet rs = client.invoke(writable, "FetchDirFiles", new Text(args[3]));
-            while (rs.hasMore()) {
-                File file = (File)rs.nextElement();
-                System.out.println("Fetched " + file.getName());
+            for (int i = 0; i < 5; ++i) {
+                new Thread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        try {
+                            ReplySet rs = client.invoke(new FileWritable(dir), "FetchDirFiles", 
+                                    new Text(target));
+                            while (rs.hasMore()) {
+                                File file = (File)rs.nextElement();
+                                System.out.println("Fetched " + file.getName());
+                            }
+                            rs.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                }).start();
             }
-            rs.close();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
