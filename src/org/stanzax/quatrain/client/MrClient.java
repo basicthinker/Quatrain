@@ -230,7 +230,7 @@ public class MrClient {
                     IntWritable callID = new IntWritable();
                     callID.readFields(dataIn);
                     // Pass on data to corresponding result set
-                    ReplySet results = ReplySet.get(callID.get());
+                    final ReplySet results = ReplySet.get(callID.get());
                     if (results != null) {
                         byte type = dataIn.readByte();
                         switch (type) {
@@ -240,16 +240,26 @@ public class MrClient {
                             }
                             break;
                         case ReplySet.EXTERNAL:
-                            SocketChannel channel = inBuf.getChannel();
+                            final SocketChannel channel = inBuf.getChannel();
                             key.cancel();
                             channel.configureBlocking(true);
-                            if (results.putData(channel)) {
-                                channel.configureBlocking(false);
-                                toRegisterRead.add(channel);
-                                selector.wakeup();
-                                return false;
-                            }
-                            break;
+                            new Thread(new Runnable() {
+
+                                @Override
+                                public void run() {
+                                    if (results.putData(channel)) {
+                                        try {
+                                            channel.configureBlocking(false);
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                        toRegisterRead.add(channel);
+                                        selector.wakeup();
+                                    }
+                                }
+                                
+                            }).start();
+                            return false;
                         case ReplySet.ERROR:
                             if (dataIn.available() == 0) {
                                 // end of frame denoting final return

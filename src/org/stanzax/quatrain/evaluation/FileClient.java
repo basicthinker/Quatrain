@@ -35,6 +35,7 @@ public class FileClient {
             
             final File dir = new File("log");
             if (!dir.isDirectory()) dir.mkdir();
+            System.out.println("Request time: " + System.currentTimeMillis());
             for (int i = 0; i < 5; ++i) {
                 new Thread(new Runnable() {
 
@@ -45,7 +46,8 @@ public class FileClient {
                                     new Text(target));
                             while (rs.hasMore()) {
                                 File file = (File)rs.nextElement();
-                                System.out.println("Fetched " + file.getName());
+                                System.out.println("Fetched " + file.getName() + 
+                                        " @" + System.currentTimeMillis());
                             }
                             rs.close();
                         } catch (Exception e) {
