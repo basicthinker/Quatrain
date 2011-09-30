@@ -5,6 +5,7 @@ package org.stanzax.quatrain.client;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.SocketChannel;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.stanzax.quatrain.io.ChannelInputStream;
 import org.stanzax.quatrain.io.DirectWritable;
 import org.stanzax.quatrain.io.EOR;
 import org.stanzax.quatrain.io.Log;
@@ -146,6 +146,7 @@ public abstract class ReplySet {
     
     /**
      * @param source - Data source, whose specific form is determined by implementation
+     * @return false if any exception happens, true otherwise.
      * */
     public abstract boolean putData(Object source);
     
@@ -193,12 +194,18 @@ public abstract class ReplySet {
             this.writable = writable;
         }
         
+        /**
+         * @param source Socket channel as the data source.
+         *      Notice that the socket channel must use blocking mode.
+         * @return false if any exception happens, true otherwise.
+         * @throws IllegalBlockingModeException if the socket channel is in non-blocking mode
+         * */
         @Override
-        public boolean putData(Object source) {
+        public boolean putData(Object source) throws IllegalBlockingModeException {
             SocketChannel channel = (SocketChannel)source;
             if (!timedOut) {
                 try {
-                    writable.read(new ChannelInputStream(channel));
+                    writable.read(channel.socket().getInputStream());
                     replyQueue.add(writable.getValue());
                     if (Log.DEBUG) Log.action("[ReplySet] Call # read in data and register a in-memory representative.", 
                             callID, writable.getValue());

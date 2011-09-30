@@ -10,11 +10,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
@@ -156,8 +156,10 @@ public class MrClient {
             pending.incrementAndGet();
             selector.wakeup();
             try {
-                channel.register(selector, ops, att);
-            } catch (ClosedChannelException e) {
+                if (channel.isOpen()) {
+                    channel.register(selector, ops, att);
+                }
+            } catch (Exception e) {
                 e.printStackTrace();
             } finally {
                 int cnt = pending.decrementAndGet();
@@ -182,21 +184,24 @@ public class MrClient {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     waitPending(); // handle new registrations
-                    if (selector.select() > 0) {
-                        Set<SelectionKey> selectedKeys = 
-                            selector.selectedKeys();
-                        for (SelectionKey key : selectedKeys) {
-                            if (Log.DEBUG) Log.state(1000, "Selecting keys ...");
-                            if (key.isValid() && key.isReadable()) {
-                                InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
-                                if (inBuf != null && doRead(inBuf)) {
-                                    key.cancel();
-                                    channelPool.putSocketChannel(inBuf.getChannel());
-                                }
+                    selector.select();
+                    SocketChannel channel;
+                    while ((channel = toRegisterRead.poll()) != null) {
+                        register(channel, SelectionKey.OP_READ, 
+                                new InputChannelBuffer(channel));
+                    }
+                    Set<SelectionKey> selectedKeys = 
+                        selector.selectedKeys();
+                    for (SelectionKey key : selectedKeys) {
+                        if (Log.DEBUG) Log.state(1000, "Selecting keys ...");
+                        if (key.isValid() && key.isReadable()) {
+                            InputChannelBuffer inBuf = (InputChannelBuffer) key.attachment();
+                            if (inBuf != null && doRead(key)) {
+                                channelPool.putSocketChannel(inBuf.getChannel());
                             }
-                        } // for
-                        selectedKeys.clear();
-                    } else Thread.yield();
+                        }
+                    } // for
+                    selectedKeys.clear();
                 } catch (Exception e) {
                     System.err.println("@MrClient.Listener.run: " +  e.getMessage());
                 }
@@ -211,7 +216,8 @@ public class MrClient {
          * @return true if RPC's replies are ready or fail, 
          *     false if further reading is necessary
          */
-        private boolean doRead(InputChannelBuffer inBuf) {
+        private boolean doRead(SelectionKey key) {
+            InputChannelBuffer inBuf = (InputChannelBuffer)key.attachment();
             try {
                 byte[] data = inBuf.read();
                 if (data != null) {
@@ -229,22 +235,34 @@ public class MrClient {
                         byte type = dataIn.readByte();
                         switch (type) {
                         case ReplySet.INTERNAL:
-                            return !results.putData(dataIn);
+                            if (results.putData(dataIn)) {
+                                return false;
+                            }
+                            break;
                         case ReplySet.EXTERNAL:
-                            return !results.putData(inBuf.getChannel());
+                            SocketChannel channel = inBuf.getChannel();
+                            key.cancel();
+                            channel.configureBlocking(true);
+                            if (results.putData(channel)) {
+                                channel.configureBlocking(false);
+                                toRegisterRead.add(channel);
+                                selector.wakeup();
+                                return false;
+                            }
+                            break;
                         case ReplySet.ERROR:
                             if (dataIn.available() == 0) {
                                 // end of frame denoting final return
                                 results.putEnd();
-                                return true;
                             } else {
                                 Text errorMessage = new Text();
                                 errorMessage.readFields(dataIn);
                                 results.putError(errorMessage.toString());
                                 return false;
                             }
-                        default:        
-                            System.err.println("@MrClient.doRead: Wrong reply type byte " + type);
+                            break;
+                        default:
+                            System.err.println("@MrClient.Listener.doRead: Wrong reply type byte " + type);
                         }
                     } else if (Log.DEBUG) { // reply set is null
                         Log.info("No such reply set #:", callID.get());
@@ -257,11 +275,14 @@ public class MrClient {
                 System.err.println("@MrClient.Listener.doRead: " + e.toString() +
                         " : " + e.getMessage());
             }
+            key.cancel();
             return true;
         } // doRead
         
         /** Hold a selector waiting for reply */
         private Selector selector;
         private AtomicInteger pending = new AtomicInteger();
+        private ConcurrentLinkedQueue<SocketChannel> toRegisterRead = 
+                new ConcurrentLinkedQueue<SocketChannel>(); 
     } // Listener
 }
